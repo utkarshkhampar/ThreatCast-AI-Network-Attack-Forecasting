@@ -5,7 +5,7 @@ services:
     env: python
     region: oregon
     plan: free
-    buildCommand: pip install -r requirements.txt && pip install greenlet
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt && pip install greenlet
     startCommand: uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
@@ -16,7 +16,7 @@ services:
         value: production
       - key: SECRET_KEY
         generateValue: true
-      - key: CORS_ORIGINS
+      - key: BACKEND_CORS_ORIGINS
         value: '["*"]'
-      - key: SMTP_ENABLED
-        value: "false"
+      - key: ALLOW_TEST_OTP_ECHO
+        value: "true"
