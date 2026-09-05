@@ -17,7 +17,6 @@ export const Register: React.FC = () => {
   // Step 2 OTP state
   const [step, setStep] = useState<'REGISTER' | 'VERIFY_OTP' | 'SUCCESS'>('REGISTER');
   const [otpCode, setOtpCode] = useState('');
-  const [devOtpHint, setDevOtpHint] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(600); // 10 minutes
   const [resending, setResending] = useState(false);
 
@@ -63,9 +62,6 @@ export const Register: React.FC = () => {
       });
 
       setSuccessMsg(res.message || 'OTP verification code dispatched to your email.');
-      if (res.dev_otp) {
-        setDevOtpHint(res.dev_otp);
-      }
       setCountdown(600);
       setStep('VERIFY_OTP');
     } catch (err: any) {
@@ -106,9 +102,6 @@ export const Register: React.FC = () => {
     try {
       const res = await api.auth.sendOtp(email.trim().toLowerCase());
       setSuccessMsg(res.message || 'New OTP dispatched.');
-      if (res.dev_otp) {
-        setDevOtpHint(res.dev_otp);
-      }
       setCountdown(600);
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to resend verification code.');
@@ -251,25 +244,13 @@ export const Register: React.FC = () => {
         {step === 'VERIFY_OTP' && (
           <GlassCard glow="cyan" className="p-6">
             <form onSubmit={handleVerifySubmit} className="space-y-5 text-xs font-mono">
-              <div className="text-center space-y-1 bg-slate-950/60 p-3 rounded-lg border border-slate-800">
+              <div className="text-center space-y-1.5 bg-slate-950/60 p-3.5 rounded-lg border border-slate-800">
                 <p className="text-slate-400">One-Time Passcode (OTP) dispatched to:</p>
-                <p className="text-cyan-400 font-bold">{email}</p>
+                <p className="text-cyan-400 font-bold tracking-wide">{email}</p>
+                <p className="text-[11px] text-slate-500 pt-1">
+                  Please check your inbox (and spam folder) for the 6-digit security code.
+                </p>
               </div>
-
-              {devOtpHint && (
-                <div className="p-2.5 bg-cyan-950/40 border border-cyan-500/30 rounded text-[11px] text-cyan-300 flex items-center justify-between font-mono animate-fadeIn">
-                  <div>
-                    ⚡ <span className="text-slate-400">Security Test OTP:</span> <span className="font-bold tracking-widest text-cyan-200">{devOtpHint}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setOtpCode(devOtpHint)}
-                    className="px-2.5 py-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 rounded border border-cyan-500/40 text-[10px] font-bold transition-all shadow-[0_0_10px_rgba(0,240,255,0.2)]"
-                  >
-                    Auto-Fill Code
-                  </button>
-                </div>
-              )}
 
               <div className="space-y-2">
                 <div className="flex justify-between items-center text-slate-300">

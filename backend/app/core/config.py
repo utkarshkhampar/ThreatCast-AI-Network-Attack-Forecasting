@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     SMTP_FROM_EMAIL: str = os.getenv("SMTP_FROM_EMAIL", "onboarding@resend.dev" if os.getenv("RESEND_API_KEY") else "auth@threatcast.soc")
     SMTP_FROM_NAME: str = os.getenv("SMTP_FROM_NAME", "ThreatCast SOC Security")
     OTP_EXPIRE_MINUTES: int = int(os.getenv("OTP_EXPIRE_MINUTES", "10"))
-    ALLOW_TEST_OTP_ECHO: bool = os.getenv("ALLOW_TEST_OTP_ECHO", "true").lower() == "true"
+    ALLOW_TEST_OTP_ECHO: bool = os.getenv("ALLOW_TEST_OTP_ECHO", "false").lower() == "true"
 
     # Database
     # Use SQLite async by default for seamless single-command zero-config local run,

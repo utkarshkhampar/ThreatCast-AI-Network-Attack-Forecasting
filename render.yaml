@@ -19,4 +19,4 @@ services:
       - key: BACKEND_CORS_ORIGINS
         value: '["*"]'
       - key: ALLOW_TEST_OTP_ECHO
-        value: "true"
+        value: "false"

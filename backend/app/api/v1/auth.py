@@ -127,7 +127,7 @@ async def register_user(req: RegisterRequest, db: AsyncSession = Depends(get_db)
         email=new_user.email,
         username=new_user.username,
         is_verified=False,
-        dev_otp=otp if (settings.DEBUG or settings.ALLOW_TEST_OTP_ECHO) else None
+        dev_otp=otp if settings.ALLOW_TEST_OTP_ECHO else None
     )
 
 
@@ -163,7 +163,7 @@ async def send_otp(req: SendOtpRequest, db: AsyncSession = Depends(get_db)):
         email=user.email,
         username=user.username,
         is_verified=user.is_verified,
-        dev_otp=otp if (settings.DEBUG or settings.ALLOW_TEST_OTP_ECHO) else None
+        dev_otp=otp if settings.ALLOW_TEST_OTP_ECHO else None
     )
 
 

@@ -6,6 +6,10 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 from backend.app.main import app
+from backend.app.core.config import settings
+
+# Explicitly enable test OTP echo for automated test suite validation
+settings.ALLOW_TEST_OTP_ECHO = True
 
 client = TestClient(app)
 
