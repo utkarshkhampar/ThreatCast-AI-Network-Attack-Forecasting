@@ -152,9 +152,14 @@ def _send_via_brevo(to_email: str, subject: str, html_content: str) -> bool:
 def _send_via_smtp(to_email: str, subject: str, plain_content: str, html_content: str) -> bool:
     """Dispatches email via standard SMTP socket with TLS/SSL."""
     try:
+        from_email = settings.SMTP_FROM_EMAIL
+        if not from_email or "auth@threatcast.soc" in from_email or "gmail" in (settings.SMTP_HOST or "").lower():
+            from_email = settings.SMTP_USER or settings.SMTP_FROM_EMAIL
+        from_name = settings.SMTP_FROM_NAME or "ThreatCast SOC Security"
+
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
-        msg["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
+        msg["From"] = f"{from_name} <{from_email}>"
         msg["To"] = to_email
 
         part1 = MIMEText(plain_content, "plain")
@@ -173,9 +178,9 @@ def _send_via_smtp(to_email: str, subject: str, plain_content: str, html_content
 
         with server:
             server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-            server.sendmail(settings.SMTP_FROM_EMAIL, to_email, msg.as_string())
+            server.sendmail(from_email, to_email, msg.as_string())
 
-        logger.info(f"Successfully dispatched verification OTP to {to_email} via SMTP.")
+        logger.info(f"Successfully dispatched verification OTP to {to_email} via SMTP ({settings.SMTP_HOST}).")
         return True
     except Exception as e:
         logger.warning(f"Failed to dispatch email via SMTP ({e}).")
