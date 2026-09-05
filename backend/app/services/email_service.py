@@ -176,8 +176,11 @@ def _send_via_smtp(to_email: str, subject: str, plain_content: str, html_content
                 server.starttls()
                 server.ehlo()
 
+        smtp_user = settings.SMTP_USER.strip()
+        smtp_password = (settings.SMTP_PASSWORD or "").strip().replace(" ", "")
+
         with server:
-            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+            server.login(smtp_user, smtp_password)
             server.sendmail(from_email, to_email, msg.as_string())
 
         logger.info(f"Successfully dispatched verification OTP to {to_email} via SMTP ({settings.SMTP_HOST}).")
