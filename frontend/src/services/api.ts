@@ -4,7 +4,7 @@ import {
   BlockchainBlock, TelemetryStats, FlowRecord
 } from '../types';
 
-const API_BASE = '/api/v1';
+const API_BASE = ((import.meta as any).env?.VITE_API_BASE_URL as string) || '/api/v1';
 
 export const authStorage = {
   getToken: (): string | null => localStorage.getItem('threatcast_token'),
