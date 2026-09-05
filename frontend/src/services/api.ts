@@ -463,8 +463,7 @@ export const api = {
 
         return {
           status: 'otp_sent',
-          message: 'Security clearance recorded. Verification OTP dispatched (Cloud Demo Mode: code provided below).',
-          dev_otp: devOtp,
+          message: 'Account registration initiated. A 6-digit security clearance code (OTP) has been dispatched to your email address.',
           email: payload.email
         };
       }
@@ -490,8 +489,7 @@ export const api = {
 
         return {
           status: 'otp_sent',
-          message: 'New verification OTP generated (Cloud Demo Mode).',
-          dev_otp: newOtp,
+          message: 'A new 6-digit verification code has been dispatched to your email.',
           email
         };
       }
