@@ -21,6 +21,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install greenlet pytest-asyncio
+      - name: Seed Database
+        run: |
+          PYTHONPATH=. python scripts/seed_db.py
       - name: Run Pytest Suite
         run: |
           PYTHONPATH=. pytest tests/ -v
