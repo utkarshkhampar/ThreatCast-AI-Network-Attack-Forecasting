@@ -21,12 +21,15 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours for dev convenience
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
-    # Email & OTP Settings
+    # Email Dispatch Providers (Resend API, SendGrid, Brevo, or Standard SMTP)
+    RESEND_API_KEY: Optional[str] = os.getenv("RESEND_API_KEY", None)
+    SENDGRID_API_KEY: Optional[str] = os.getenv("SENDGRID_API_KEY", None)
+    BREVO_API_KEY: Optional[str] = os.getenv("BREVO_API_KEY", None)
     SMTP_HOST: Optional[str] = os.getenv("SMTP_HOST", None)
     SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
     SMTP_USER: Optional[str] = os.getenv("SMTP_USER", None)
     SMTP_PASSWORD: Optional[str] = os.getenv("SMTP_PASSWORD", None)
-    SMTP_FROM_EMAIL: str = os.getenv("SMTP_FROM_EMAIL", "auth@threatcast.soc")
+    SMTP_FROM_EMAIL: str = os.getenv("SMTP_FROM_EMAIL", "onboarding@resend.dev" if os.getenv("RESEND_API_KEY") else "auth@threatcast.soc")
     SMTP_FROM_NAME: str = os.getenv("SMTP_FROM_NAME", "ThreatCast SOC Security")
     OTP_EXPIRE_MINUTES: int = int(os.getenv("OTP_EXPIRE_MINUTES", "10"))
     ALLOW_TEST_OTP_ECHO: bool = os.getenv("ALLOW_TEST_OTP_ECHO", "true").lower() == "true"

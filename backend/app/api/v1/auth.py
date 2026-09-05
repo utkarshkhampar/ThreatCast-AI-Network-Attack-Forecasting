@@ -24,8 +24,27 @@ from backend.app.services.email_service import send_otp_email
 router = APIRouter(prefix="/auth", tags=["Authentication & RBAC"])
 
 
+import time
+from collections import defaultdict
+
+_otp_rate_limits = defaultdict(list)
+
+
+def _check_otp_rate_limit(email: str, max_requests: int = 5, window_seconds: int = 300):
+    """Enforces rate limiting on OTP dispatch (max 5 requests per 5 minutes per email)."""
+    now = time.time()
+    valid_timestamps = [t for t in _otp_rate_limits[email] if now - t < window_seconds]
+    if len(valid_timestamps) >= max_requests:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many verification requests. Please wait a few minutes before requesting another OTP."
+        )
+    valid_timestamps.append(now)
+    _otp_rate_limits[email] = valid_timestamps
+
+
 def _generate_6digit_otp() -> str:
-    """Generates a cryptographically random 6-digit numeric OTP string."""
+    """Generates a cryptographically random 6-digit numeric OTP string using CSPRNG."""
     return f"{secrets.randbelow(900000) + 100000}"
 
 
@@ -37,6 +56,8 @@ async def register_user(req: RegisterRequest, db: AsyncSession = Depends(get_db)
     """
     normalized_email = req.email.strip().lower()
     normalized_username = req.username.strip()
+
+    _check_otp_rate_limit(normalized_email)
 
     stmt = select(User).where((User.username == normalized_username) | (User.email == normalized_email))
     result = await db.execute(stmt)
@@ -114,6 +135,7 @@ async def register_user(req: RegisterRequest, db: AsyncSession = Depends(get_db)
 async def send_otp(req: SendOtpRequest, db: AsyncSession = Depends(get_db)):
     """Resends a fresh 6-digit OTP to the registered email."""
     normalized_email = req.email.strip().lower()
+    _check_otp_rate_limit(normalized_email)
     stmt = select(User).where(User.email == normalized_email)
     result = await db.execute(stmt)
     user = result.scalars().first()
@@ -189,8 +211,8 @@ async def verify_otp(req: VerifyOtpRequest, db: AsyncSession = Depends(get_db)):
             detail="Verification code has expired. Please request a new code."
         )
 
-    # Validate code
-    if not user.otp_code or user.otp_code != req.otp_code.strip():
+    # Validate code with constant-time comparison
+    if not user.otp_code or not secrets.compare_digest(user.otp_code, req.otp_code.strip()):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid verification code (OTP). Please check and try again."

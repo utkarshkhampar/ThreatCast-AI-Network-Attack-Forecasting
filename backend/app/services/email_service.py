@@ -64,11 +64,132 @@ def generate_otp_email_html(user_name: str, otp_code: str, expire_minutes: int) 
     """
 
 
+def _send_via_resend(to_email: str, subject: str, html_content: str) -> bool:
+    """Dispatches email via Resend transactional HTTPS API."""
+    try:
+        import httpx
+        url = "https://api.resend.com/emails"
+        headers = {
+            "Authorization": f"Bearer {settings.RESEND_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        sender = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
+        payload = {
+            "from": sender,
+            "to": [to_email],
+            "subject": subject,
+            "html": html_content
+        }
+        with httpx.Client(timeout=10.0) as client:
+            resp = client.post(url, headers=headers, json=payload)
+            if resp.status_code in (200, 201):
+                logger.info(f"Successfully dispatched OTP to {to_email} via Resend API.")
+                return True
+            else:
+                logger.warning(f"Resend API error (HTTP {resp.status_code}): {resp.text}")
+    except Exception as e:
+        logger.warning(f"Failed to dispatch via Resend API: {e}")
+    return False
+
+
+def _send_via_sendgrid(to_email: str, subject: str, plain_content: str, html_content: str) -> bool:
+    """Dispatches email via SendGrid v3 Mail Send API."""
+    try:
+        import httpx
+        url = "https://api.sendgrid.com/v3/mail/send"
+        headers = {
+            "Authorization": f"Bearer {settings.SENDGRID_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "personalizations": [{"to": [{"email": to_email}]}],
+            "from": {"email": settings.SMTP_FROM_EMAIL, "name": settings.SMTP_FROM_NAME},
+            "subject": subject,
+            "content": [
+                {"type": "text/plain", "value": plain_content},
+                {"type": "text/html", "value": html_content}
+            ]
+        }
+        with httpx.Client(timeout=10.0) as client:
+            resp = client.post(url, headers=headers, json=payload)
+            if resp.status_code in (200, 202):
+                logger.info(f"Successfully dispatched OTP to {to_email} via SendGrid API.")
+                return True
+            else:
+                logger.warning(f"SendGrid API error (HTTP {resp.status_code}): {resp.text}")
+    except Exception as e:
+        logger.warning(f"Failed to dispatch via SendGrid API: {e}")
+    return False
+
+
+def _send_via_brevo(to_email: str, subject: str, html_content: str) -> bool:
+    """Dispatches email via Brevo (Sendinblue) transactional API."""
+    try:
+        import httpx
+        url = "https://api.brevo.com/v3/smtp/email"
+        headers = {
+            "api-key": settings.BREVO_API_KEY,
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "sender": {"name": settings.SMTP_FROM_NAME, "email": settings.SMTP_FROM_EMAIL},
+            "to": [{"email": to_email}],
+            "subject": subject,
+            "htmlContent": html_content
+        }
+        with httpx.Client(timeout=10.0) as client:
+            resp = client.post(url, headers=headers, json=payload)
+            if resp.status_code in (200, 201):
+                logger.info(f"Successfully dispatched OTP to {to_email} via Brevo API.")
+                return True
+            else:
+                logger.warning(f"Brevo API error (HTTP {resp.status_code}): {resp.text}")
+    except Exception as e:
+        logger.warning(f"Failed to dispatch via Brevo API: {e}")
+    return False
+
+
+def _send_via_smtp(to_email: str, subject: str, plain_content: str, html_content: str) -> bool:
+    """Dispatches email via standard SMTP socket with TLS/SSL."""
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
+        msg["To"] = to_email
+
+        part1 = MIMEText(plain_content, "plain")
+        part2 = MIMEText(html_content, "html")
+        msg.attach(part1)
+        msg.attach(part2)
+
+        if settings.SMTP_PORT == 465:
+            server = smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15)
+        else:
+            server = smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15)
+            server.ehlo()
+            if settings.SMTP_PORT in (587, 25):
+                server.starttls()
+                server.ehlo()
+
+        with server:
+            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+            server.sendmail(settings.SMTP_FROM_EMAIL, to_email, msg.as_string())
+
+        logger.info(f"Successfully dispatched verification OTP to {to_email} via SMTP.")
+        return True
+    except Exception as e:
+        logger.warning(f"Failed to dispatch email via SMTP ({e}).")
+        return False
+
+
 def send_otp_email(to_email: str, otp_code: str, user_name: str = "Operator") -> bool:
     """
-    Dispatches the OTP email.
-    If SMTP is configured, sends via smtplib with TLS.
-    If SMTP is not configured or fails, logs to console with visual banner for easy local testing.
+    Dispatches the OTP email across configured providers in priority order:
+    1. Resend API (HTTPS)
+    2. SendGrid API (HTTPS)
+    3. Brevo API (HTTPS)
+    4. SMTP TLS / SSL Socket
+    5. Local / Development Console Fallback
     """
     subject = f"[ThreatCast] Your Security Verification Code is {otp_code}"
     html_content = generate_otp_email_html(user_name, otp_code, settings.OTP_EXPIRE_MINUTES)
@@ -79,38 +200,27 @@ def send_otp_email(to_email: str, otp_code: str, user_name: str = "Operator") ->
         f"This code will expire in {settings.OTP_EXPIRE_MINUTES} minutes.\n"
     )
 
-    # Check if SMTP is configured
-    if settings.SMTP_HOST and settings.SMTP_USER and settings.SMTP_PASSWORD:
-        try:
-            msg = MIMEMultipart("alternative")
-            msg["Subject"] = subject
-            msg["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
-            msg["To"] = to_email
-
-            part1 = MIMEText(plain_content, "plain")
-            part2 = MIMEText(html_content, "html")
-            msg.attach(part1)
-            msg.attach(part2)
-
-            if settings.SMTP_PORT == 465:
-                server = smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15)
-            else:
-                server = smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15)
-                server.ehlo()
-                if settings.SMTP_PORT in (587, 25):
-                    server.starttls()
-                    server.ehlo()
-
-            with server:
-                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-                server.sendmail(settings.SMTP_FROM_EMAIL, to_email, msg.as_string())
-
-            logger.info(f"Successfully dispatched verification OTP to {to_email} via SMTP.")
+    # 1. Resend API
+    if settings.RESEND_API_KEY:
+        if _send_via_resend(to_email, subject, html_content):
             return True
-        except Exception as e:
-            logger.warning(f"Failed to dispatch email via SMTP ({e}). Falling back to local console dispatch.")
 
-    # Local / Development Fallback Logger
+    # 2. SendGrid API
+    if settings.SENDGRID_API_KEY:
+        if _send_via_sendgrid(to_email, subject, plain_content, html_content):
+            return True
+
+    # 3. Brevo API
+    if settings.BREVO_API_KEY:
+        if _send_via_brevo(to_email, subject, html_content):
+            return True
+
+    # 4. Standard SMTP (Gmail, Outlook, Amazon SES, Mailgun, etc.)
+    if settings.SMTP_HOST and settings.SMTP_USER and settings.SMTP_PASSWORD:
+        if _send_via_smtp(to_email, subject, plain_content, html_content):
+            return True
+
+    # 5. Local / Development Fallback Simulator
     print("\n" + "=" * 65)
     print(" 📨 [THREATCAST EMAIL DISPATCH SIMULATOR]")
     print(f" To:       {to_email}")
