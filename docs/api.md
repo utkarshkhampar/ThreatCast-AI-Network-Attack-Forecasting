@@ -16,7 +16,7 @@ Authenticates a user and issues an access JWT token.
 - **Request (OAuth2 Form / JSON)**:
   ```json
   {
-    "username": "analyst@threatcast.local",
+    "username": "analyst@threatcast.soc",
     "password": "AnalystPassword123!"
   }
   ```
@@ -25,11 +25,64 @@ Authenticates a user and issues an access JWT token.
   {
     "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6...",
     "token_type": "bearer",
-    "expires_in": 28800,
-    "user": {
-      "id": "usr-01",
-      "email": "analyst@threatcast.local",
-      "role": "TIER_3_ANALYST"
+    "expires_in": 86400,
+    "role": "TIER_3_ANALYST",
+    "username": "analyst"
+  }
+  ```
+
+### `POST /auth/register`
+Initiates account registration and dispatches a 6-digit Email OTP verification code.
+- **Request**:
+  ```json
+  {
+    "username": "operator_jane",
+    "email": "jane@enterprise.soc",
+    "password": "SecretPassword123!",
+    "full_name": "Jane Doe",
+    "role": "ANALYST"
+  }
+  ```
+- **Response (201 Created)**:
+  ```json
+  {
+    "message": "Account registration initiated. A 6-digit security clearance code (OTP) has been dispatched to your email address.",
+    "email": "jane@enterprise.soc",
+    "username": "operator_jane",
+    "is_verified": false,
+    "dev_otp": "849201"
+  }
+  ```
+
+### `POST /auth/send-otp`
+Resends a fresh 6-digit OTP code to the specified email address.
+- **Request**:
+  ```json
+  {
+    "email": "jane@enterprise.soc"
+  }
+  ```
+
+### `POST /auth/verify-otp`
+Verifies the submitted 6-digit OTP code, activates account clearance, and mints an authenticated session token.
+- **Request**:
+  ```json
+  {
+    "email": "jane@enterprise.soc",
+    "otp_code": "849201"
+  }
+  ```
+- **Response (200 OK)**:
+  ```json
+  {
+    "message": "Security clearance verified successfully! Account activated.",
+    "is_verified": true,
+    "token": {
+      "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6...",
+      "token_type": "bearer",
+      "expires_in": 86400,
+      "role": "ANALYST",
+      "username": "operator_jane"
     }
   }
   ```

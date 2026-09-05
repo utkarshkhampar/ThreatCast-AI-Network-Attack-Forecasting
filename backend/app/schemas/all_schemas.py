@@ -32,6 +32,29 @@ class RegisterRequest(BaseModel):
     role: Optional[str] = "ANALYST"
 
 
+class RegisterResponse(BaseModel):
+    message: str
+    email: str
+    username: str
+    is_verified: bool
+    dev_otp: Optional[str] = None
+
+
+class SendOtpRequest(BaseModel):
+    email: str
+
+
+class VerifyOtpRequest(BaseModel):
+    email: str
+    otp_code: str
+
+
+class VerifyOtpResponse(BaseModel):
+    message: str
+    is_verified: bool
+    token: Optional[Token] = None
+
+
 class UserResponse(BaseModel):
     id: int
     username: str
@@ -39,6 +62,7 @@ class UserResponse(BaseModel):
     full_name: Optional[str] = None
     role: str
     is_active: bool
+    is_verified: bool = False
     mfa_enabled: bool
     created_at: datetime
 

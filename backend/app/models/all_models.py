@@ -19,6 +19,9 @@ class User(Base):
     full_name = Column(String(128), nullable=True)
     role = Column(String(32), default="ANALYST", nullable=False)  # SUPER_ADMIN, SOC_ADMIN, ANALYST, etc.
     is_active = Column(Boolean, default=True)
+    is_verified = Column(Boolean, default=False)
+    otp_code = Column(String(16), nullable=True)
+    otp_expires_at = Column(DateTime, nullable=True)
     mfa_enabled = Column(Boolean, default=False)
     mfa_secret = Column(String(64), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)

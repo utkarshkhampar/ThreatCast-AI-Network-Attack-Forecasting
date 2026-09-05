@@ -18,18 +18,24 @@ export const Landing: React.FC = () => {
             </span>
           </div>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          <Link
+            to="/register"
+            className="px-3.5 py-1.5 rounded-lg text-xs font-mono font-medium text-cyan-400 border border-cyan-500/30 hover:bg-cyan-950/40 transition-colors"
+          >
+            Register Clearance (OTP)
+          </Link>
           <Link
             to="/login"
-            className="px-4 py-2 rounded-lg text-xs font-mono font-medium text-slate-300 hover:text-white transition-colors"
+            className="px-3.5 py-1.5 rounded-lg text-xs font-mono font-medium text-slate-300 hover:text-white transition-colors"
           >
             Operator Login
           </Link>
           <Link
             to="/dashboard"
-            className="px-5 py-2 rounded-lg text-xs font-mono font-bold bg-cyan-500 hover:bg-cyan-400 text-slate-950 transition-all shadow-[0_0_20px_rgba(0,240,255,0.4)] flex items-center gap-2"
+            className="px-4 py-1.5 rounded-lg text-xs font-mono font-bold bg-cyan-500 hover:bg-cyan-400 text-slate-950 transition-all shadow-[0_0_20px_rgba(0,240,255,0.4)] flex items-center gap-2"
           >
-            <span>Enter SOC Mission Control</span>
+            <span>SOC Mission Control</span>
             <ArrowRight className="w-4 h-4" />
           </Link>
         </div>

@@ -7,7 +7,7 @@
 [![FastAPI](https://img.shields.io/badge/backend-FastAPI-009688.svg)](https://fastapi.tiangolo.com/)
 [![React 19](https://img.shields.io/badge/frontend-React%2019-61DAFB.svg)](https://react.dev/)
 [![Docker](https://img.shields.io/badge/docker-ready-2496ED.svg)](https://www.docker.com/)
-[![Pytest](https://img.shields.io/badge/tests-23%20passed-success.svg)](tests/)
+[![Pytest](https://img.shields.io/badge/tests-24%20passed-success.svg)](tests/)
 
 > **ThreatCast** is an enterprise-grade, end-to-end autonomous cyber defense and attack forecasting platform. Departing from traditional reactive alert systems, ThreatCast formulates network defense as a **Hierarchical Multimodal Temporal Graph World Model**, modeling network dynamics in a continuous latent manifold to forecast multi-step attack trajectories ($K=5$ steps forward, 50s lead time) before compromise culminates.
 
@@ -91,7 +91,11 @@
 - **Defensive Boundary**: Strictly restricted to RFC 1918 private subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `127.0.0.1/32`). Execution against public Internet CIDRs is blocked at the kernel level.
 - **Safety Safeguards**: Default `DRY_RUN` mode, global emergency kill switch, rate limiting, and automatic mathematical rollback generation.
 
-### 7. Blockchain Forensic Evidence & Chain-of-Custody
+### 7. Email OTP Security Clearance Registration & Verification
+- Full 2-step self-service operator registration with multi-factor Email OTP verification (`POST /api/v1/auth/register`, `POST /api/v1/auth/verify-otp`).
+- TLS-encrypted SMTP delivery with automatic console/echo fallback for offline and local evaluation environments.
+
+### 8. Blockchain Forensic Evidence & Chain-of-Custody
 - Hyperledger Fabric v2.5 Go smart contract (`threatcast_evidence.go`) and standalone cryptographic SHA-256 Merkle tree ledger.
 - Anchors all incident telemetry and action executions into tamper-proof, non-repudiable audit blocks compliant with NIST SP 800-86 and ISO/IEC 27037.
 

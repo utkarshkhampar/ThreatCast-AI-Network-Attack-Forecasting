@@ -1,6 +1,7 @@
 import React from 'react';
 import { Shield, Search, Bell, Terminal, Activity, Lock, Cpu } from 'lucide-react';
 import { useSocStore } from '../../context/useSocStore';
+import { authStorage } from '../../services/api';
 
 export const Navbar: React.FC = () => {
   const { isWsConnected, activeDefenceMode, setIsSearchOpen } = useSocStore();
@@ -58,11 +59,15 @@ export const Navbar: React.FC = () => {
         {/* User profile */}
         <div className="flex items-center gap-3 pl-2 border-l border-slate-800">
           <div className="flex items-center justify-center w-8 h-8 rounded-full bg-cyan-950 border border-cyan-500/30 text-cyan-300 font-mono text-xs font-bold">
-            SA
+            {(authStorage.getUser()?.username || 'OP').slice(0, 2).toUpperCase()}
           </div>
           <div className="hidden md:block text-left">
-            <div className="text-xs font-medium text-slate-200">Lead SOC Admin</div>
-            <div className="text-[10px] text-cyan-400/80 font-mono">SUPER_ADMIN</div>
+            <div className="text-xs font-medium text-slate-200">
+              {authStorage.getUser()?.username || 'Lead SOC Admin'}
+            </div>
+            <div className="text-[10px] text-cyan-400/80 font-mono">
+              {authStorage.getUser()?.role || 'SUPER_ADMIN'}
+            </div>
           </div>
         </div>
       </div>

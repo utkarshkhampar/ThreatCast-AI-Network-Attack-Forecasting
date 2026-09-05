@@ -6,17 +6,38 @@ import {
 
 const API_BASE = '/api/v1';
 
+export const authStorage = {
+  getToken: (): string | null => localStorage.getItem('threatcast_token'),
+  setToken: (token: string) => localStorage.setItem('threatcast_token', token),
+  removeToken: () => {
+    localStorage.removeItem('threatcast_token');
+    localStorage.removeItem('threatcast_user');
+  },
+  getUser: (): any => {
+    const u = localStorage.getItem('threatcast_user');
+    return u ? JSON.parse(u) : null;
+  },
+  setUser: (user: any) => localStorage.setItem('threatcast_user', JSON.stringify(user))
+};
+
 async function fetchJson<T>(endpoint: string, options?: RequestInit, fallback?: T): Promise<T> {
   try {
+    const token = authStorage.getToken();
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(options?.headers as Record<string, string> || {})
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const res = await fetch(`${API_BASE}${endpoint}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(options?.headers || {})
-      },
-      ...options
+      ...options,
+      headers
     });
     if (!res.ok) {
-      throw new Error(`HTTP ${res.status} on ${endpoint}`);
+      const errData = await res.json().catch(() => ({ detail: `HTTP ${res.status} on ${endpoint}` }));
+      throw new Error(errData.detail || `Request failed with status ${res.status}`);
     }
     return await res.json();
   } catch (err) {
@@ -266,5 +287,53 @@ export const api = {
         "LSTM Sequence": { accuracy: 0.908, precision: 0.895, recall: 0.915, f1_score: 0.905, roc_auc: 0.938, brier_score: 0.082, early_warning_lead_time_min: 2.5, inference_latency_ms: 12.8 },
         "Temporal Graph World Model": { accuracy: 0.946, precision: 0.938, recall: 0.952, f1_score: 0.945, roc_auc: 0.978, brier_score: 0.048, early_warning_lead_time_min: 4.8, inference_latency_ms: 18.4 }
       }
-    })
+    }),
+
+  auth: {
+    login: async (username: string, password: string): Promise<any> => {
+      const data = await fetchJson<any>('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ username, password })
+      });
+      if (data?.access_token) {
+        authStorage.setToken(data.access_token);
+        authStorage.setUser({ username: data.username, role: data.role });
+      }
+      return data;
+    },
+
+    register: async (payload: { username: string; email: string; password: string; full_name?: string; role?: string }): Promise<any> => {
+      return fetchJson<any>('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+    },
+
+    sendOtp: async (email: string): Promise<any> => {
+      return fetchJson<any>('/auth/send-otp', {
+        method: 'POST',
+        body: JSON.stringify({ email })
+      });
+    },
+
+    verifyOtp: async (email: string, otp_code: string): Promise<any> => {
+      const data = await fetchJson<any>('/auth/verify-otp', {
+        method: 'POST',
+        body: JSON.stringify({ email, otp_code })
+      });
+      if (data?.token?.access_token) {
+        authStorage.setToken(data.token.access_token);
+        authStorage.setUser({ username: data.token.username, role: data.token.role });
+      }
+      return data;
+    },
+
+    getMe: async (): Promise<any> => {
+      return fetchJson<any>('/auth/me');
+    },
+
+    logout: () => {
+      authStorage.removeToken();
+    }
+  }
 };

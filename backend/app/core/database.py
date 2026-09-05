@@ -39,7 +39,20 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             await session.close()
 
 
+from sqlalchemy import text
+
+
 async def init_db():
-    """Initializes all database tables on application startup."""
+    """Initializes all database tables on application startup and ensures schema alignment."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Seamless SQLite schema migrations for new columns
+        for col_def in [
+            "ALTER TABLE users ADD COLUMN is_verified BOOLEAN DEFAULT 0",
+            "ALTER TABLE users ADD COLUMN otp_code VARCHAR(16)",
+            "ALTER TABLE users ADD COLUMN otp_expires_at DATETIME"
+        ]:
+            try:
+                await conn.execute(text(col_def))
+            except Exception:
+                pass
