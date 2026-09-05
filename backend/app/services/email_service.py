@@ -168,9 +168,9 @@ def _send_via_smtp(to_email: str, subject: str, plain_content: str, html_content
         msg.attach(part2)
 
         if settings.SMTP_PORT == 465:
-            server = smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15)
+            server = smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, timeout=5)
         else:
-            server = smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15)
+            server = smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=5)
             server.ehlo()
             if settings.SMTP_PORT in (587, 25):
                 server.starttls()
@@ -186,7 +186,11 @@ def _send_via_smtp(to_email: str, subject: str, plain_content: str, html_content
         logger.info(f"Successfully dispatched verification OTP to {to_email} via SMTP ({settings.SMTP_HOST}).")
         return True
     except Exception as e:
-        logger.warning(f"Failed to dispatch email via SMTP ({e}).")
+        logger.warning(
+            f"Failed to dispatch email via SMTP ({e}). "
+            "Note: Cloud platforms like Render free tier block outbound SMTP ports 587/465/25. "
+            "Use an HTTPS API provider like Brevo (BREVO_API_KEY) or Resend (RESEND_API_KEY) which runs over port 443."
+        )
         return False
 
 
