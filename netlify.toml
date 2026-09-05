@@ -8,12 +8,12 @@
 [build.environment]
   NODE_VERSION = "20"
 
-# Optional: Proxy API requests to your live backend service if configured
-# [[redirects]]
-#   from = "/api/*"
-#   to = "https://your-backend-api-domain.com/api/:splat"
-#   status = 200
-#   force = true
+# Proxy API requests to the live Render backend
+[[redirects]]
+  from = "/api/*"
+  to = "https://threatcast-ai-network-attack-forecasting.onrender.com/api/:splat"
+  status = 200
+  force = true
 
 # Single Page Application (SPA) Client-Side Route Fallback
 [[redirects]]
