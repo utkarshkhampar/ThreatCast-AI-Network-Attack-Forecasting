@@ -257,8 +257,17 @@ export const Register: React.FC = () => {
               </div>
 
               {devOtpHint && (
-                <div className="p-2.5 bg-cyan-950/40 border border-cyan-500/30 rounded text-[11px] text-cyan-300 text-center font-mono">
-                  ⚡ <span className="text-slate-400">Dev Test Code:</span> <span className="font-bold tracking-widest text-cyan-200">{devOtpHint}</span>
+                <div className="p-2.5 bg-cyan-950/40 border border-cyan-500/30 rounded text-[11px] text-cyan-300 flex items-center justify-between font-mono animate-fadeIn">
+                  <div>
+                    ⚡ <span className="text-slate-400">Security Test OTP:</span> <span className="font-bold tracking-widest text-cyan-200">{devOtpHint}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setOtpCode(devOtpHint)}
+                    className="px-2.5 py-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 rounded border border-cyan-500/40 text-[10px] font-bold transition-all shadow-[0_0_10px_rgba(0,240,255,0.2)]"
+                  >
+                    Auto-Fill Code
+                  </button>
                 </div>
               )}
 
