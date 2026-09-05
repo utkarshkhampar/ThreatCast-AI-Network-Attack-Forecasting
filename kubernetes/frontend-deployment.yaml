@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: threatcast-frontend
+  namespace: threatcast-system
+  labels:
+    app: threatcast-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: threatcast-frontend
+  template:
+    metadata:
+      labels:
+        app: threatcast-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: threatcast/frontend:1.0.0
+          ports:
+            - containerPort: 3000
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: threatcast-frontend
+  namespace: threatcast-system
+spec:
+  type: ClusterIP
+  selector:
+    app: threatcast-frontend
+  ports:
+    - port: 3000
+      targetPort: 3000

@@ -1,0 +1,21 @@
+# ThreatCast AI Engine & World Model Runtime
+FROM python:3.9-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+RUN useradd -m threatcast && chown -R threatcast:threatcast /app
+USER threatcast
+
+EXPOSE 8001
+
+CMD ["python3", "-c", "import uvicorn; from backend.app.main import app; uvicorn.run(app, host='0.0.0.0', port=8001)"]

@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: threatcast-backend
+  namespace: threatcast-system
+  labels:
+    app: threatcast-backend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: threatcast-backend
+  template:
+    metadata:
+      labels:
+        app: threatcast-backend
+    spec:
+      containers:
+        - name: backend
+          image: threatcast/backend:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          env:
+            - name: DATABASE_URL
+              value: "postgresql+asyncpg://threatcast:threatcast_pass@threatcast-postgres:5432/threatcast_db"
+            - name: REDIS_URL
+              value: "redis://threatcast-redis:6379/0"
+            - name: KAFKA_BROKERS
+              value: "threatcast-kafka:9092"
+            - name: ACTIVE_DEFENCE_MODE
+              value: "DRY_RUN"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "2000m"
+              memory: "2Gi"
+          readinessProbe:
+            httpGet:
+              path: /health/readiness
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health/liveness
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: threatcast-backend
+  namespace: threatcast-system
+spec:
+  type: ClusterIP
+  selector:
+    app: threatcast-backend
+  ports:
+    - port: 8000
+      targetPort: 8000
