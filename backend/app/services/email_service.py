@@ -92,11 +92,16 @@ def send_otp_email(to_email: str, otp_code: str, user_name: str = "Operator") ->
             msg.attach(part1)
             msg.attach(part2)
 
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+            if settings.SMTP_PORT == 465:
+                server = smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15)
+            else:
+                server = smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15)
                 server.ehlo()
-                if settings.SMTP_PORT == 587:
+                if settings.SMTP_PORT in (587, 25):
                     server.starttls()
                     server.ehlo()
+
+            with server:
                 server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
                 server.sendmail(settings.SMTP_FROM_EMAIL, to_email, msg.as_string())
 
