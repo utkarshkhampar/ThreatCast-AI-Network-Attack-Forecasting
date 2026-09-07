@@ -7,7 +7,7 @@ import json
 import uuid
 import secrets
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from backend.app.core.config import settings
@@ -24,8 +24,22 @@ from backend.app.schemas.all_schemas import (
     VerifyOtpResponse, UserResponse
 )
 from backend.app.services.email_service import send_otp_email
+from backend.app.services.session_manager import session_tracker, parse_device_info
 
 router = APIRouter(prefix="/auth", tags=["Authentication & RBAC"])
+
+
+def _extract_client_info(request: Request):
+    """Extracts client IP address and device/browser info from incoming HTTP request."""
+    client_ip = request.headers.get("x-forwarded-for")
+    if client_ip:
+        client_ip = client_ip.split(",")[0].strip()
+    else:
+        client_ip = request.client.host if request.client else "127.0.0.1"
+    if client_ip in ["::1", "localhost", "testclient"]:
+        client_ip = "127.0.0.1"
+    user_agent = request.headers.get("user-agent", "SOC Terminal")
+    return client_ip, user_agent
 
 
 import time
@@ -281,7 +295,7 @@ async def verify_otp(req: VerifyOtpRequest, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/login", response_model=Token)
-async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
+async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(get_db)):
     """Authenticates an operator using username or email with password."""
     normalized_login = req.username.strip().lower()
 
@@ -323,6 +337,24 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
             detail="Account pending email OTP verification. Please verify your email to activate clearance."
         )
 
+    # Capture client IP and device telemetry
+    client_ip, user_agent = _extract_client_info(request)
+    device_info = parse_device_info(user_agent)
+    user.last_login_ip = client_ip
+    user.last_login_device = device_info
+    user.last_active_at = datetime.utcnow()
+    await db.commit()
+
+    # Register active session
+    session_tracker.register_session(
+        user_id=user.id,
+        username=user.username,
+        email=user.email,
+        role=user.role,
+        ip_address=client_ip,
+        user_agent=user_agent
+    )
+
     token_payload = {
         "sub": user.username,
         "user_id": user.id,
@@ -340,7 +372,13 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
             target="ThreatCast SOC Console",
             outcome="SUCCESS",
             correlation_id=str(uuid.uuid4()),
-            details_json=json.dumps({"role": user.role, "email": user.email, "event": "Operator signed into SOC Console"})
+            details_json=json.dumps({
+                "role": user.role,
+                "email": user.email,
+                "client_ip": client_ip,
+                "device": device_info,
+                "event": "Operator signed into SOC Console"
+            })
         )
         db.add(audit_entry)
         await db.commit()
@@ -452,7 +490,7 @@ async def login_initiate(req: LoginInitiateRequest, db: AsyncSession = Depends(g
 
 
 @router.post("/login-verify-otp", response_model=Token)
-async def login_verify_otp(req: LoginVerifyRequest, db: AsyncSession = Depends(get_db)):
+async def login_verify_otp(req: LoginVerifyRequest, request: Request, db: AsyncSession = Depends(get_db)):
     """
     Step 2 of 2FA Login:
     Verifies the 6-digit OTP received via email and issues a secure JWT access token.
@@ -488,12 +526,29 @@ async def login_verify_otp(req: LoginVerifyRequest, db: AsyncSession = Depends(g
             detail="Invalid verification code. Please check your email inbox and enter the 6-digit code."
         )
 
-    # Clear challenge
+    # Capture client IP and device telemetry
+    client_ip, user_agent = _extract_client_info(request)
+    device_info = parse_device_info(user_agent)
+
+    # Clear challenge & record login device telemetry
     user.otp_code = None
     user.otp_expires_at = None
     user.is_verified = True
+    user.last_login_ip = client_ip
+    user.last_login_device = device_info
+    user.last_active_at = datetime.utcnow()
     await db.commit()
     await db.refresh(user)
+
+    # Register active operator session
+    session_tracker.register_session(
+        user_id=user.id,
+        username=user.username,
+        email=user.email,
+        role=user.role,
+        ip_address=client_ip,
+        user_agent=user_agent
+    )
 
     token_payload = {
         "sub": user.username,
@@ -512,7 +567,13 @@ async def login_verify_otp(req: LoginVerifyRequest, db: AsyncSession = Depends(g
             target="ThreatCast SOC Console",
             outcome="SUCCESS",
             correlation_id=str(uuid.uuid4()),
-            details_json=json.dumps({"role": user.role, "email": user.email, "event": "Operator verified login via email OTP"})
+            details_json=json.dumps({
+                "role": user.role,
+                "email": user.email,
+                "client_ip": client_ip,
+                "device": device_info,
+                "event": "Operator verified login via email OTP"
+            })
         )
         db.add(audit_entry)
         await db.commit()

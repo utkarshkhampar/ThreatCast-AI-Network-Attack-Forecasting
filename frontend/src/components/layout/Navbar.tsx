@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, Search, Lock, Clock, Activity, ChevronDown, User, KeyRound, LogOut, ShieldCheck } from 'lucide-react';
+import { Shield, Search, Lock, Clock, Activity, ChevronDown, User, KeyRound, LogOut, ShieldCheck, Database } from 'lucide-react';
 import { useSocStore } from '../../context/useSocStore';
 import { api, authStorage } from '../../services/api';
 
@@ -162,6 +162,17 @@ export const Navbar: React.FC = () => {
                 >
                   <KeyRound className="w-4 h-4 text-cyan-400" />
                   <span>Change Password</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setIsProfileMenuOpen(false);
+                    navigate('/database');
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-slate-300 hover:text-cyan-300 hover:bg-cyan-950/40 rounded-lg transition-colors text-left"
+                >
+                  <Database className="w-4 h-4 text-cyan-400" />
+                  <span>Database & Directory</span>
                 </button>
               </div>
 

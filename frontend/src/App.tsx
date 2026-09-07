@@ -26,6 +26,7 @@ import { Compliance } from './pages/Compliance';
 import { AiModels } from './pages/AiModels';
 import { AuditLogs } from './pages/AuditLogs';
 import { Settings } from './pages/Settings';
+import { DatabaseManagement } from './pages/DatabaseManagement';
 
 const AppLayout: React.FC = () => {
   return (
@@ -70,6 +71,7 @@ export function App() {
           <Route path="/models" element={<AiModels />} />
           <Route path="/audit" element={<AuditLogs />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/database" element={<DatabaseManagement />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

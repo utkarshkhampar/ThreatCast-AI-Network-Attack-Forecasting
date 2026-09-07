@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Settings as SettingsIcon, User, Shield, KeyRound, Lock,
-  CheckCircle2, AlertCircle, LogOut, Activity, Mail, RefreshCw
+  CheckCircle2, AlertCircle, LogOut, Activity, Mail, RefreshCw, Database
 } from 'lucide-react';
 import { GlassCard } from '../components/common/GlassCard';
 import { api, authStorage } from '../services/api';
@@ -115,6 +115,16 @@ export const Settings: React.FC = () => {
           >
             <Activity className="w-3.5 h-3.5" />
             <span>System Health</span>
+          </button>
+          <button
+            onClick={() => navigate('/database')}
+            className="px-3 py-1.5 rounded transition-colors flex items-center gap-1.5 text-slate-400 hover:text-cyan-300 hover:bg-slate-850"
+          >
+            <Database className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Database & Directory</span>
+            <span className="px-1.5 py-0.2 text-[9px] bg-cyan-950 text-cyan-300 border border-cyan-500/30 rounded font-bold">
+              ADMIN
+            </span>
           </button>
         </div>
       </div>

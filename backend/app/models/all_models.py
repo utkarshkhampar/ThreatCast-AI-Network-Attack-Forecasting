@@ -26,6 +26,10 @@ class User(Base):
     mfa_secret = Column(String(64), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_login_ip = Column(String(64), nullable=True)
+    last_login_device = Column(String(256), nullable=True)
+    last_active_at = Column(DateTime, nullable=True)
+
 
 
 class Asset(Base):

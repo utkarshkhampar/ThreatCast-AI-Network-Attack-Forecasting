@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Activity, TrendingUp, Network, AlertTriangle,
   Lightbulb, Target, UserCheck, PlayCircle, ShieldAlert,
   Link2, Globe, Server, BarChart3, CheckSquare,
-  Cpu, FileText, Settings, LogOut
+  Cpu, FileText, Settings, LogOut, Database
 } from 'lucide-react';
 import { api, authStorage } from '../../services/api';
 
@@ -46,6 +46,7 @@ const navSections = [
   {
     title: 'GOVERNANCE & SYSTEM',
     items: [
+      { name: 'Database & Users', path: '/database', icon: Database, badge: 'ADMIN' },
       { name: 'Assets & Hosts', path: '/assets', icon: Server },
       { name: 'Historical Analytics', path: '/analytics', icon: BarChart3 },
       { name: 'Compliance & Audit', path: '/compliance', icon: CheckSquare },

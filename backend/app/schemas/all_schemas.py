@@ -94,6 +94,9 @@ class UserResponse(BaseModel):
     is_verified: bool = False
     mfa_enabled: bool
     created_at: datetime
+    last_login_ip: Optional[str] = None
+    last_login_device: Optional[str] = None
+    last_active_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

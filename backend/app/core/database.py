@@ -50,7 +50,10 @@ async def init_db():
         for col_def in [
             "ALTER TABLE users ADD COLUMN is_verified BOOLEAN DEFAULT 0",
             "ALTER TABLE users ADD COLUMN otp_code VARCHAR(16)",
-            "ALTER TABLE users ADD COLUMN otp_expires_at DATETIME"
+            "ALTER TABLE users ADD COLUMN otp_expires_at DATETIME",
+            "ALTER TABLE users ADD COLUMN last_login_ip VARCHAR(64)",
+            "ALTER TABLE users ADD COLUMN last_login_device VARCHAR(256)",
+            "ALTER TABLE users ADD COLUMN last_active_at DATETIME"
         ]:
             try:
                 await conn.execute(text(col_def))

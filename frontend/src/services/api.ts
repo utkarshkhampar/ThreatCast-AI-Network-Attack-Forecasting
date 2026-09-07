@@ -617,5 +617,27 @@ export const api = {
     logout: () => {
       authStorage.removeToken();
     }
+  },
+
+  users: {
+    getStats: async (): Promise<any> => {
+      return await fetchJson<any>('/users/stats');
+    },
+    getDatabaseOverview: async (): Promise<any> => {
+      return await fetchJson<any>('/users/database-overview');
+    },
+    getSessions: async (): Promise<any> => {
+      return await fetchJson<any>('/users/sessions');
+    },
+    terminateSession: async (sessionId: string): Promise<any> => {
+      return await fetchJson<any>(`/users/sessions/${encodeURIComponent(sessionId)}/terminate`, {
+        method: 'POST'
+      });
+    },
+    toggleUserStatus: async (userId: number): Promise<any> => {
+      return await fetchJson<any>(`/users/${userId}/toggle-status`, {
+        method: 'POST'
+      });
+    }
   }
 };
