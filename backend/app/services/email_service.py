@@ -194,7 +194,7 @@ def _send_via_smtp(to_email: str, subject: str, plain_content: str, html_content
         return False
 
 
-def send_otp_email(to_email: str, otp_code: str, user_name: str = "Operator") -> bool:
+def send_otp_email(to_email: str, otp_code: str, user_name: str = "Operator", subject: Optional[str] = None) -> bool:
     """
     Dispatches the OTP email across configured providers in priority order:
     1. Resend API (HTTPS)
@@ -203,7 +203,7 @@ def send_otp_email(to_email: str, otp_code: str, user_name: str = "Operator") ->
     4. SMTP TLS / SSL Socket
     5. Local / Development Console Fallback
     """
-    subject = f"[ThreatCast] Your Security Verification Code is {otp_code}"
+    email_subject = subject or f"[ThreatCast] Your Security Verification Code is {otp_code}"
     html_content = generate_otp_email_html(user_name, otp_code, settings.OTP_EXPIRE_MINUTES)
     plain_content = (
         f"ThreatCast Security Verification\n\n"
@@ -214,29 +214,29 @@ def send_otp_email(to_email: str, otp_code: str, user_name: str = "Operator") ->
 
     # 1. Resend API
     if settings.RESEND_API_KEY:
-        if _send_via_resend(to_email, subject, html_content):
+        if _send_via_resend(to_email, email_subject, html_content):
             return True
 
     # 2. SendGrid API
     if settings.SENDGRID_API_KEY:
-        if _send_via_sendgrid(to_email, subject, plain_content, html_content):
+        if _send_via_sendgrid(to_email, email_subject, plain_content, html_content):
             return True
 
     # 3. Brevo API
     if settings.BREVO_API_KEY:
-        if _send_via_brevo(to_email, subject, html_content):
+        if _send_via_brevo(to_email, email_subject, html_content):
             return True
 
     # 4. Standard SMTP (Gmail, Outlook, Amazon SES, Mailgun, etc.)
     if settings.SMTP_HOST and settings.SMTP_USER and settings.SMTP_PASSWORD:
-        if _send_via_smtp(to_email, subject, plain_content, html_content):
+        if _send_via_smtp(to_email, email_subject, plain_content, html_content):
             return True
 
     # 5. Local / Development Fallback Simulator
     print("\n" + "=" * 65)
     print(" 📨 [THREATCAST EMAIL DISPATCH SIMULATOR]")
     print(f" To:       {to_email}")
-    print(f" Subject:  {subject}")
+    print(f" Subject:  {email_subject}")
     print(f" Code:     >>> [ {otp_code} ] <<< (Expires in {settings.OTP_EXPIRE_MINUTES} mins)")
     print("=" * 65 + "\n")
     return True

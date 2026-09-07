@@ -22,6 +22,35 @@ class LoginRequest(BaseModel):
     username: str
     password: str
     mfa_code: Optional[str] = None
+    otp_code: Optional[str] = None
+
+
+class LoginInitiateRequest(BaseModel):
+    username_or_email: str
+    password: str
+
+
+class LoginInitiateResponse(BaseModel):
+    require_otp: bool = True
+    message: str
+    email: str
+    username: str
+    dev_otp: Optional[str] = None
+
+
+class LoginVerifyRequest(BaseModel):
+    username_or_email: str
+    otp_code: str
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+class ChangePasswordResponse(BaseModel):
+    message: str
+    success: bool = True
 
 
 class RegisterRequest(BaseModel):

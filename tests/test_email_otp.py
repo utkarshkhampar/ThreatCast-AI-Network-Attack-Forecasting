@@ -70,3 +70,36 @@ def test_email_otp_lifecycle():
     # 7. User can also log in using email
     login_email = client.post("/api/v1/auth/login", json={"username": test_email, "password": test_password})
     assert login_email.status_code == 200
+
+    # 8. Unregistered user rejection on login-initiate
+    unreg_res = client.post("/api/v1/auth/login-initiate", json={"username_or_email": "nonexistent_hacker", "password": "wrong"})
+    assert unreg_res.status_code == 401
+
+    # 9. Registered user initiates 2FA email login
+    initiate_res = client.post("/api/v1/auth/login-initiate", json={"username_or_email": test_username, "password": test_password})
+    assert initiate_res.status_code == 200
+    init_data = initiate_res.json()
+    assert init_data["require_otp"] is True
+    login_otp = init_data.get("dev_otp")
+    assert login_otp is not None
+    assert len(login_otp) == 6
+
+    # 10. Complete 2FA login with OTP
+    verify_login_res = client.post("/api/v1/auth/login-verify-otp", json={"username_or_email": test_username, "otp_code": login_otp})
+    assert verify_login_res.status_code == 200
+    auth_token = verify_login_res.json()["access_token"]
+    assert auth_token is not None
+
+    # 11. Authenticated operator changes password
+    new_password = "NewSuperSecretPassword999!"
+    change_res = client.post(
+        "/api/v1/auth/change-password",
+        headers={"Authorization": f"Bearer {auth_token}"},
+        json={"current_password": test_password, "new_password": new_password}
+    )
+    assert change_res.status_code == 200
+
+    # 12. Operator can initiate and login with new password
+    init_new_res = client.post("/api/v1/auth/login-initiate", json={"username_or_email": test_username, "password": new_password})
+    assert init_new_res.status_code == 200
+

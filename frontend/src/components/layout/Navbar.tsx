@@ -1,11 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { Shield, Search, Bell, Terminal, Activity, Lock, Cpu, Clock } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Shield, Search, Lock, Clock, Activity, ChevronDown, User, KeyRound, LogOut, ShieldCheck } from 'lucide-react';
 import { useSocStore } from '../../context/useSocStore';
-import { authStorage } from '../../services/api';
+import { api, authStorage } from '../../services/api';
 
 export const Navbar: React.FC = () => {
+  const navigate = useNavigate();
   const { isWsConnected, activeDefenceMode, setIsSearchOpen } = useSocStore();
   const [liveTime, setLiveTime] = useState<string>('');
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState<boolean>(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const currentUser = authStorage.getUser();
 
   useEffect(() => {
     const updateTime = () => {
@@ -16,6 +22,23 @@ export const Navbar: React.FC = () => {
     const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsProfileMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleLogout = () => {
+    setIsProfileMenuOpen(false);
+    api.auth.logout();
+    navigate('/login');
+  };
 
   return (
     <header className="sticky top-0 z-40 flex items-center justify-between h-16 px-6 border-b border-slate-800/80 bg-[#0B0F19]/90 backdrop-blur-md">
@@ -76,19 +99,84 @@ export const Navbar: React.FC = () => {
           <span className="text-amber-400 font-semibold">{activeDefenceMode}</span>
         </div>
 
-        {/* User profile */}
-        <div className="flex items-center gap-3 pl-2 border-l border-slate-800">
-          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-cyan-950 border border-cyan-500/30 text-cyan-300 font-mono text-xs font-bold">
-            {(authStorage.getUser()?.username || 'OP').slice(0, 2).toUpperCase()}
-          </div>
-          <div className="hidden md:block text-left">
-            <div className="text-xs font-medium text-slate-200">
-              {authStorage.getUser()?.username || 'Lead SOC Admin'}
+        {/* User profile with Interactive Dropdown Menu */}
+        <div className="relative pl-2 border-l border-slate-800" ref={dropdownRef}>
+          <button
+            onClick={() => setIsProfileMenuOpen((prev) => !prev)}
+            aria-expanded={isProfileMenuOpen}
+            className="flex items-center gap-2.5 py-1 px-2 rounded-lg hover:bg-slate-800/60 transition-colors focus:outline-none"
+          >
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-cyan-950 border border-cyan-500/40 text-cyan-300 font-mono text-xs font-bold shadow-[0_0_10px_rgba(0,240,255,0.2)]">
+              {(currentUser?.username || 'OP').slice(0, 2).toUpperCase()}
             </div>
-            <div className="text-[10px] text-cyan-400/80 font-mono">
-              {authStorage.getUser()?.role || 'SUPER_ADMIN'}
+            <div className="hidden md:block text-left">
+              <div className="text-xs font-medium text-slate-200">
+                {currentUser?.username || 'Lead SOC Admin'}
+              </div>
+              <div className="text-[10px] text-cyan-400/80 font-mono">
+                {currentUser?.role || 'SUPER_ADMIN'}
+              </div>
             </div>
-          </div>
+            <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${isProfileMenuOpen ? 'rotate-180 text-cyan-400' : ''}`} />
+          </button>
+
+          {/* Dropdown Menu */}
+          {isProfileMenuOpen && (
+            <div className="absolute right-0 mt-2 w-64 rounded-xl bg-[#0B0F19]/95 border border-cyan-500/30 shadow-[0_10px_35px_rgba(0,0,0,0.8)] backdrop-blur-xl py-2 z-50 font-mono">
+              {/* User Header */}
+              <div className="px-4 py-3 border-b border-slate-800/80">
+                <div className="text-xs font-bold text-slate-200 truncate">
+                  {currentUser?.full_name || currentUser?.username || 'SOC Lead Operator'}
+                </div>
+                <div className="text-[11px] text-cyan-400 truncate mt-0.5">
+                  {currentUser?.email || 'admin@threatcast.soc'}
+                </div>
+                <div className="mt-2 flex items-center gap-1.5">
+                  <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                  <span className="text-[10px] text-slate-400">Clearance:</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-500/30 font-bold">
+                    {currentUser?.role || 'SUPER_ADMIN'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Menu Items */}
+              <div className="p-1 space-y-0.5">
+                <button
+                  onClick={() => {
+                    setIsProfileMenuOpen(false);
+                    navigate('/settings');
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-slate-300 hover:text-cyan-300 hover:bg-cyan-950/40 rounded-lg transition-colors text-left"
+                >
+                  <User className="w-4 h-4 text-cyan-400" />
+                  <span>Profile & Clearance</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setIsProfileMenuOpen(false);
+                    navigate('/settings');
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-slate-300 hover:text-cyan-300 hover:bg-cyan-950/40 rounded-lg transition-colors text-left"
+                >
+                  <KeyRound className="w-4 h-4 text-cyan-400" />
+                  <span>Change Password</span>
+                </button>
+              </div>
+
+              {/* Logout Action */}
+              <div className="p-1 border-t border-slate-800/80 mt-1">
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-950/40 rounded-lg transition-colors text-left font-semibold"
+                >
+                  <LogOut className="w-4 h-4 text-rose-400" />
+                  <span>Sign Out / Log Out</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </header>

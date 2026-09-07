@@ -441,40 +441,49 @@ export const api = {
 
 
   auth: {
-    login: async (username: string, password: string): Promise<any> => {
-      try {
-        const data = await fetchJson<any>('/auth/login', {
-          method: 'POST',
-          body: JSON.stringify({ username, password })
-        });
-        if (data?.access_token) {
-          authStorage.setToken(data.access_token);
-          authStorage.setUser({ username: data.username, role: data.role });
-        }
-        return data;
-      } catch (err: any) {
-        console.warn("Backend /auth/login unavailable; engaging interactive demo authentication:", err);
-        let role = 'ANALYST';
-        if (username.toLowerCase().includes('admin') || username.toLowerCase().includes('secops') || username.toLowerCase() === 'admin') {
-          role = 'SECOPS_LEAD';
-        }
-        try {
-          const users = JSON.parse(localStorage.getItem('threatcast_sim_users') || '{}');
-          if (users[username.toLowerCase()]) {
-            role = users[username.toLowerCase()].role || role;
-          }
-        } catch (_) {}
+    loginInitiate: async (usernameOrEmail: string, password: string): Promise<{ require_otp: boolean; message: string; email: string; username: string }> => {
+      return await fetchJson<any>('/auth/login-initiate', {
+        method: 'POST',
+        body: JSON.stringify({ username_or_email: usernameOrEmail, password })
+      });
+    },
 
-        const mockToken = 'tc_sim_jwt_' + Math.random().toString(36).substring(2) + Date.now();
-        authStorage.setToken(mockToken);
-        authStorage.setUser({ username, role });
-        return {
-          access_token: mockToken,
-          token_type: "bearer",
-          username,
-          role
-        };
+    loginVerifyOtp: async (usernameOrEmail: string, otpCode: string): Promise<any> => {
+      const data = await fetchJson<any>('/auth/login-verify-otp', {
+        method: 'POST',
+        body: JSON.stringify({ username_or_email: usernameOrEmail, otp_code: otpCode })
+      });
+      if (data?.access_token) {
+        authStorage.setToken(data.access_token);
+        authStorage.setUser({ username: data.username, role: data.role, email: data.email });
       }
+      return data;
+    },
+
+    resendLoginOtp: async (usernameOrEmail: string): Promise<any> => {
+      return await fetchJson<any>('/auth/resend-login-otp', {
+        method: 'POST',
+        body: JSON.stringify({ email: usernameOrEmail })
+      });
+    },
+
+    changePassword: async (currentPassword: string, newPassword: string): Promise<{ message: string; success: boolean }> => {
+      return await fetchJson<{ message: string; success: boolean }>('/auth/change-password', {
+        method: 'POST',
+        body: JSON.stringify({ current_password: currentPassword, new_password: newPassword })
+      });
+    },
+
+    login: async (username: string, password: string): Promise<any> => {
+      const data = await fetchJson<any>('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ username, password })
+      });
+      if (data?.access_token) {
+        authStorage.setToken(data.access_token);
+        authStorage.setUser({ username: data.username, role: data.role });
+      }
+      return data;
     },
 
     register: async (payload: { username: string; email: string; password: string; full_name?: string; role?: string }): Promise<any> => {
@@ -568,10 +577,6 @@ export const api = {
           }
         } catch (_) {}
 
-        if (!valid && (otp_code === '123456' || otp_code === '842910')) {
-          valid = true;
-        }
-
         if (valid) {
           const mockToken = 'tc_sim_jwt_' + Math.random().toString(36).substring(2) + Date.now();
           authStorage.setToken(mockToken);
@@ -587,7 +592,7 @@ export const api = {
             }
           };
         } else {
-          throw new Error('Invalid verification code. Enter the 6-digit OTP code shown above.');
+          throw new Error('Invalid verification code. Please check your email inbox and enter the 6-digit code.');
         }
       }
     },

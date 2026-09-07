@@ -1,11 +1,12 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Activity, TrendingUp, Network, AlertTriangle,
   Lightbulb, Target, UserCheck, PlayCircle, ShieldAlert,
   Link2, Globe, Server, BarChart3, CheckSquare,
-  Cpu, FileText, Settings
+  Cpu, FileText, Settings, LogOut
 } from 'lucide-react';
+import { api, authStorage } from '../../services/api';
 
 interface NavItem {
   name: string;
@@ -56,6 +57,14 @@ const navSections = [
 ];
 
 export const Sidebar: React.FC = () => {
+  const navigate = useNavigate();
+  const currentUser = authStorage.getUser();
+
+  const handleLogout = () => {
+    api.auth.logout();
+    navigate('/login');
+  };
+
   return (
     <aside className="w-64 border-r border-slate-800/80 bg-[#0B0F19] flex flex-col h-[calc(100vh-4rem)] overflow-y-auto">
       <div className="flex-1 py-4 px-3 space-y-6">
@@ -96,7 +105,38 @@ export const Sidebar: React.FC = () => {
         ))}
       </div>
 
-      <div className="p-3 border-t border-slate-800/60 text-[11px] font-mono text-slate-500 text-center">
+      {/* Operator Status & Quick Logout Footer Card */}
+      <div className="p-3 border-t border-slate-800/80 bg-slate-900/30">
+        <div className="flex items-center justify-between p-2 rounded-lg bg-slate-900/80 border border-slate-800 hover:border-slate-700/80 transition-colors">
+          <button
+            onClick={() => navigate('/settings')}
+            className="flex items-center gap-2.5 text-left overflow-hidden min-w-0 flex-1 hover:opacity-80 transition-opacity"
+            title="View Profile & Security"
+          >
+            <div className="flex items-center justify-center w-7 h-7 rounded-md bg-cyan-950 border border-cyan-500/30 text-cyan-300 font-mono text-[11px] font-bold shrink-0">
+              {(currentUser?.username || 'OP').slice(0, 2).toUpperCase()}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-medium text-slate-200 truncate font-mono">
+                {currentUser?.username || 'SOC Lead'}
+              </div>
+              <div className="text-[10px] text-cyan-400 font-mono truncate">
+                {currentUser?.role || 'SUPER_ADMIN'}
+              </div>
+            </div>
+          </button>
+
+          <button
+            onClick={handleLogout}
+            title="Log Out of SOC Console"
+            className="p-1.5 rounded-md text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 border border-transparent hover:border-rose-500/30 transition-all shrink-0 ml-1"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      <div className="py-2 px-3 border-t border-slate-800/60 text-[10px] font-mono text-slate-500 text-center">
         NTRO · Smart India Hackathon
       </div>
     </aside>
