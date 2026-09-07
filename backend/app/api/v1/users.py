@@ -38,7 +38,7 @@ async def get_user_stats(
     active sessions, and registered operator directory.
     Restricted to SUPER_ADMIN and SOC_ADMIN roles.
     """
-    stmt = select(User).order_by(User.id.asc())
+    stmt = select(User).order_by(User.id.desc())
     result = await db.execute(stmt)
     users = result.scalars().all()
 
@@ -213,13 +213,71 @@ async def toggle_user_status(
     }
 
 
+@router.post("/simulate-registration")
+async def simulate_registration(
+    payload: Dict[str, Any] = Depends(admin_guard),
+    db: AsyncSession = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Simulates a live registration event from an external campus device
+    (e.g., iPhone or remote workstation) for real-time demonstration.
+    """
+    import time
+    from backend.app.core.security import get_password_hash
+    ts = int(time.time())
+    devices = [
+        ("192.168.1.104", "iOS 18 · Mobile Safari (Campus Wi-Fi)", "TIER_3_ANALYST"),
+        ("10.0.4.15", "macOS 15 · Chrome 128 (SecOps Lab)", "SOC_ADMIN"),
+        ("172.16.8.22", "Windows 11 · Edge 128 (Field Ops)", "ANALYST"),
+        ("198.51.100.99", "Linux x86_64 · Firefox 130 (Remote VPN)", "AUDITOR"),
+    ]
+    ip, device_name, role_choice = devices[ts % len(devices)]
+    sim_username = f"analyst_live_{ts % 10000}"
+    sim_email = f"{sim_username}@kiet.edu"
+
+    new_user = User(
+        username=sim_username,
+        email=sim_email,
+        hashed_password=get_password_hash("ThreatCast2026!"),
+        full_name=f"Campus Operator ({sim_username})",
+        role=role_choice,
+        is_active=True,
+        is_verified=True,
+        last_login_ip=ip,
+        last_login_device=device_name,
+        last_active_at=datetime.utcnow()
+    )
+    db.add(new_user)
+    await db.commit()
+    await db.refresh(new_user)
+
+    session_tracker.register_session(
+        user_id=new_user.id,
+        username=new_user.username,
+        email=new_user.email,
+        role=new_user.role,
+        ip_address=ip,
+        user_agent=device_name
+    )
+
+    return {
+        "message": f"Simulated live operator registration for {sim_username} from {ip} ({device_name}).",
+        "user_id": new_user.id,
+        "username": new_user.username,
+        "email": new_user.email,
+        "role": new_user.role,
+        "ip_address": ip,
+        "device": device_name
+    }
+
+
 @router.get("", response_model=List[UserResponse])
 async def list_users(
     payload: Dict[str, Any] = Depends(admin_guard),
     db: AsyncSession = Depends(get_db)
 ):
     """Lists all registered users in the database. Restricted to SUPER_ADMIN and SOC_ADMIN."""
-    stmt = select(User).order_by(User.id.asc())
+    stmt = select(User).order_by(User.id.desc())
     result = await db.execute(stmt)
     users = result.scalars().all()
     return users

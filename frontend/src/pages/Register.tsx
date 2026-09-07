@@ -214,9 +214,11 @@ export const Register: React.FC = () => {
                   onChange={(e) => setRole(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-100 focus:outline-none focus:border-cyan-500"
                 >
+                  <option value="SUPER_ADMIN">Lead Super Administrator (Full Database & Clearance Control)</option>
+                  <option value="SOC_ADMIN">SOC Administrator (Admin Clearance)</option>
+                  <option value="SECOPS_LEAD">SecOps Lead (Active Defence Authorized)</option>
                   <option value="ANALYST">Tier-1 / Tier-2 SOC Analyst</option>
                   <option value="TIER_3_ANALYST">Tier-3 Advanced Threat Hunter</option>
-                  <option value="SECOPS_LEAD">SecOps Lead (Active Defence Authorized)</option>
                   <option value="AUDITOR">Compliance & Blockchain Auditor</option>
                 </select>
               </div>

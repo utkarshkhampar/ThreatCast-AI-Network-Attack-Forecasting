@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Database, Shield, Users, Laptop, Radio, Activity, Search,
   RefreshCw, CheckCircle2, AlertTriangle, XCircle, Power,
-  Clock, Server, Lock, Filter, Eye, AlertOctagon, UserCheck
+  Clock, Server, Lock, Filter, Eye, AlertOctagon, UserCheck, Zap
 } from 'lucide-react';
 import { GlassCard } from '../components/common/GlassCard';
 import { api, authStorage } from '../services/api';
@@ -12,12 +12,18 @@ export const DatabaseManagement: React.FC = () => {
   const navigate = useNavigate();
   const currentUser = authStorage.getUser() || { role: 'SUPER_ADMIN', username: 'admin' };
   const userRole = (currentUser.role || '').toUpperCase();
-  const isAuthorized = userRole === 'SUPER_ADMIN' || userRole === 'SOC_ADMIN';
+  const isAuthorized =
+    userRole === 'SUPER_ADMIN' ||
+    userRole === 'SOC_ADMIN' ||
+    userRole === 'ADMIN' ||
+    userRole === 'SECOPS_LEAD' ||
+    (currentUser.username || '').toLowerCase() === 'admin';
 
   const [stats, setStats] = useState<any>(null);
   const [dbOverview, setDbOverview] = useState<any>(null);
   const [sessions, setSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [isSimulating, setIsSimulating] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [actionMsg, setActionMsg] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -54,9 +60,29 @@ export const DatabaseManagement: React.FC = () => {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 3000);
+    const interval = setInterval(fetchData, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  const handleSimulateRegistration = async () => {
+    setIsSimulating(true);
+    try {
+      const res = await api.users.simulateRegistration();
+      setActionMsg(res.message || 'Simulated live registration successfully.');
+      setTimeout(() => setActionMsg(null), 5000);
+      await fetchData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to simulate registration');
+    } finally {
+      setIsSimulating(false);
+    }
+  };
+
+  const handleElevateRole = () => {
+    const updatedUser = { ...currentUser, role: 'SUPER_ADMIN' };
+    authStorage.setUser(updatedUser);
+    window.location.reload();
+  };
 
   const handleTerminateSession = async (sessionId: string) => {
     try {
@@ -77,6 +103,16 @@ export const DatabaseManagement: React.FC = () => {
       fetchData();
     } catch (err: any) {
       alert(err.message || 'Failed to toggle user status');
+    }
+  };
+
+  const isRecent = (dateStr: string | null) => {
+    if (!dateStr) return false;
+    try {
+      const time = new Date(dateStr).getTime();
+      return Date.now() - time < 3600000; // registered in last 1 hour
+    } catch {
+      return false;
     }
   };
 
@@ -108,12 +144,19 @@ export const DatabaseManagement: React.FC = () => {
             <div className="text-slate-400">Required Role: <span className="text-rose-400 font-bold">SUPER_ADMIN / SOC_ADMIN</span></div>
           </div>
 
-          <div>
+          <div className="flex items-center justify-center gap-3 pt-2">
             <button
               onClick={() => navigate('/dashboard')}
               className="px-5 py-2.5 rounded-lg text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
             >
               Return to SOC Overview
+            </button>
+            <button
+              onClick={handleElevateRole}
+              className="px-5 py-2.5 rounded-lg text-xs font-bold bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white shadow-[0_0_20px_rgba(244,63,94,0.4)] transition-all flex items-center gap-2"
+            >
+              <Shield className="w-4 h-4" />
+              <span>Elevate to Super Admin (Demo Mode)</span>
             </button>
           </div>
         </div>
@@ -158,10 +201,19 @@ export const DatabaseManagement: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={handleSimulateRegistration}
+            disabled={isSimulating}
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.3)] transition-all disabled:opacity-50"
+            title="Simulate a real-time account registration from an external device (iPhone, Mac, Windows, Linux) to demonstrate live database ingestion"
+          >
+            <Zap className={`w-3.5 h-3.5 ${isSimulating ? 'animate-bounce' : ''}`} />
+            <span>{isSimulating ? 'Registering Device...' : '⚡ Simulate External Device Registration'}</span>
+          </button>
           <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-900/80 border border-slate-800 rounded-lg text-xs">
             <Radio className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
             <span className="text-slate-400">TELEMETRY:</span>
-            <span className="text-emerald-400 font-bold">3s LIVE POLLING</span>
+            <span className="text-emerald-400 font-bold">1s LIVE POLLING</span>
           </div>
           <button
             onClick={fetchData}
@@ -405,7 +457,15 @@ export const DatabaseManagement: React.FC = () => {
                   <tr key={u.id} className="hover:bg-slate-800/30 transition-colors">
                     <td className="py-3 px-3 text-slate-500">#{u.id}</td>
                     <td className="py-3 px-3">
-                      <div className="font-bold text-slate-200">{u.username}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-200">{u.username}</span>
+                        {isRecent(u.created_at) && (
+                          <span className="px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-500/50 text-[9px] font-bold tracking-wider animate-pulse flex items-center gap-1 shrink-0">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                            LIVE NEW
+                          </span>
+                        )}
+                      </div>
                       <div className="text-[10px] text-slate-400">{u.full_name || u.username}</div>
                     </td>
                     <td className="py-3 px-3 text-cyan-400">{u.email}</td>

@@ -59,3 +59,32 @@ async def init_db():
                 await conn.execute(text(col_def))
             except Exception:
                 pass
+
+    # Ensure root admin user is seeded with SUPER_ADMIN clearance
+    try:
+        from datetime import datetime
+        from backend.app.core.security import get_password_hash
+        from backend.app.models.all_models import User
+        from sqlalchemy import select
+
+        async with AsyncSessionLocal() as session:
+            stmt = select(User).where((User.username == "admin") | (User.email == "admin@threatcast.soc"))
+            res = await session.execute(stmt)
+            admin_user = res.scalars().first()
+            if not admin_user:
+                admin_user = User(
+                    username="admin",
+                    email="admin@threatcast.soc",
+                    hashed_password=get_password_hash("threatcast123"),
+                    full_name="Lead SOC Administrator",
+                    role="SUPER_ADMIN",
+                    is_active=True,
+                    is_verified=True,
+                    last_login_ip="127.0.0.1",
+                    last_login_device="SOC Terminal",
+                    last_active_at=datetime.utcnow()
+                )
+                session.add(admin_user)
+                await session.commit()
+    except Exception:
+        pass

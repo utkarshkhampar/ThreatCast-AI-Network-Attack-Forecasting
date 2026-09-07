@@ -89,3 +89,31 @@ def test_database_overview_and_sessions():
         headers=headers
     )
     assert term_res.status_code == 200
+
+
+def test_simulate_registration():
+    admin_token = create_access_token({
+        "sub": "admin",
+        "user_id": 1,
+        "role": "SUPER_ADMIN",
+        "email": "admin@threatcast.soc"
+    })
+    headers = {"Authorization": f"Bearer {admin_token}"}
+
+    # Simulate registration from external device
+    sim_res = client.post("/api/v1/users/simulate-registration", headers=headers)
+    assert sim_res.status_code == 200
+    sim_data = sim_res.json()
+    assert "user_id" in sim_data
+    assert "username" in sim_data
+    assert "ip_address" in sim_data
+    assert "device" in sim_data
+
+    # Check that the simulated user is present in stats at the top
+    stats_res = client.get("/api/v1/users/stats", headers=headers)
+    assert stats_res.status_code == 200
+    stats = stats_res.json()
+    top_user = stats["users"][0]
+    assert top_user["username"] == sim_data["username"]
+    assert top_user["last_login_ip"] == sim_data["ip_address"]
+

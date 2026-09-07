@@ -638,6 +638,11 @@ export const api = {
       return await fetchJson<any>(`/users/${userId}/toggle-status`, {
         method: 'POST'
       });
+    },
+    simulateRegistration: async (): Promise<any> => {
+      return await fetchJson<any>('/users/simulate-registration', {
+        method: 'POST'
+      });
     }
   }
 };
