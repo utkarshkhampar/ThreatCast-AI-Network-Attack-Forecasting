@@ -10,6 +10,8 @@ from pydantic import BaseModel
 from response_engine.gatekeeper import response_gatekeeper
 from response_engine.executors import action_executor
 from response_engine.policy_engine import policy_engine
+from blockchain.client import blockchain_client
+from backend.app.api.v1.telemetry import temporal_graph
 from backend.app.schemas.all_schemas import DefensiveActionRequest, DefensiveActionResponse
 
 router = APIRouter(prefix="/response", tags=["Controlled Active Defence & Response"])
@@ -66,6 +68,25 @@ async def execute_defensive_action(req: DefensiveActionRequest):
         metadata=req.metadata
     )
 
+    # Commit defensive containment action to blockchain ledger
+    try:
+        blockchain_client.anchor_evidence(
+            evidence_id=f"ACT-{record['action_id']}",
+            forecast_id="FC-ACTIVE-DEFENCE",
+            evidence_hash=record["sha256_hash"],
+            collector_id="GATEKEEPER-ENGINE",
+            target_asset_id=req.target_ip,
+            mitre_technique=req.metadata.get("mitre_technique", "T1021") if req.metadata else "T1021",
+            risk_score=record["projected_risk_after"],
+            confidence_score=0.98,
+            off_chain_uri=f"policy://response/{record['action_id']}.json",
+            actor_id=actor_id
+        )
+        if req.action_type in ["ISOLATE_ENDPOINT", "BLOCK_PORT", "VLAN_QUARANTINE"]:
+            temporal_graph.add_or_update_edge(req.target_ip, "10.0.0.10", "TCP", 445, 0, 0, syn_count=0, threat_score=8.0)
+    except Exception:
+        pass
+
     return DefensiveActionResponse(
         action_id=record["action_id"],
         action_type=record["action_type"],
@@ -86,6 +107,17 @@ async def rollback_action(action_id: str):
     result = action_executor.rollback_action(action_id, actor_id)
     if not result.get("success"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result.get("error"))
+
+    try:
+        blockchain_client.record_custody_transfer(
+            evidence_id=f"ACT-{action_id}",
+            actor_id=actor_id,
+            action="ROLLBACK_EXECUTED",
+            notes=f"Active defence action {action_id} successfully reversed."
+        )
+    except Exception:
+        pass
+
     return result
 
 

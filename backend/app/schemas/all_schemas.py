@@ -167,6 +167,7 @@ class ExplainabilityResponse(BaseModel):
     predicted_stage: str
     attack_probability: float
     plain_language_summary: str
+    anomaly_reasons: Optional[List[str]] = None
     top_contributing_factors: List[XaiAttributionFactor]
     model_explainability_method: str
 

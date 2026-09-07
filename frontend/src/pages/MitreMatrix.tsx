@@ -10,10 +10,16 @@ export const MitreMatrix: React.FC = () => {
   const [selectedMapping, setSelectedMapping] = useState<MitreTechniqueMatch | null>(null);
 
   useEffect(() => {
-    api.getMitreMappings().then(data => {
-      setMappings(data);
-      if (data.length > 0) setSelectedMapping(data[0]);
-    });
+    const fetchMappings = () => {
+      api.getMitreMappings().then(data => {
+        setMappings(data);
+        setSelectedMapping(prev => prev ? (data.find(d => d.technique_id === prev.technique_id) || data[0]) : data[0]);
+      }).catch(console.error);
+    };
+
+    fetchMappings();
+    const interval = setInterval(fetchMappings, 2500);
+
     api.getMitreTactics()
       .then(data => {
         if (data && Object.keys(data).length > 0) {
@@ -38,6 +44,8 @@ export const MitreMatrix: React.FC = () => {
         "TA0010": { name: "Exfiltration" }
       }))
       .then(t => t && setTactics(t));
+
+    return () => clearInterval(interval);
   }, []);
 
   return (
@@ -48,6 +56,10 @@ export const MitreMatrix: React.FC = () => {
           <h1 className="text-xl font-bold font-mono text-slate-100 flex items-center gap-2">
             <Target className="w-5 h-5 text-cyan-400" />
             MITRE ATT&CK® ENTERPRISE MATRIX MAPPING
+            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-cyan-950/80 border border-cyan-500/40 text-[10px] text-cyan-300 font-mono font-semibold">
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span>
+              LIVE ATTRIBUTION (2.5s)
+            </span>
           </h1>
           <p className="text-xs text-slate-400 mt-1">
             Grounds observed traffic and predicted forward trajectories in the MITRE ATT&CK v14 framework with non-assertive language.

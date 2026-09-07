@@ -13,8 +13,13 @@ export const ActiveDefence: React.FC = () => {
   const [executionMessage, setExecutionMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    api.getResponseRecommendations("192.168.1.45").then(setRecommendations);
-    api.getActionHistory().then(setHistory);
+    const fetchDefence = () => {
+      api.getResponseRecommendations("192.168.1.45").then(setRecommendations).catch(console.error);
+      api.getActionHistory().then(setHistory).catch(console.error);
+    };
+    fetchDefence();
+    const interval = setInterval(fetchDefence, 3000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleExecute = async (action: any) => {

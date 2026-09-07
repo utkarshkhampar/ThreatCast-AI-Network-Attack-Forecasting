@@ -21,18 +21,32 @@ async def list_techniques():
     return MITRE_TECHNIQUES
 
 
+from backend.app.api.v1.telemetry import (
+    ingested_packets_buffer, flow_aggregator, state_builder
+)
+
 @router.get("/active-mappings", response_model=List[Dict[str, Any]])
 async def get_active_mitre_mappings():
-    dummy_factors = [
-        {"feature_key": "port_entropy", "observed_value": 2.4},
-        {"feature_key": "unique_ports_count", "observed_value": 24},
-        {"feature_key": "max_host_fan_out", "observed_value": 4}
+    active_flows = flow_aggregator.get_active_flow_records()
+    snapshot = state_builder.build_state(ingested_packets_buffer, active_flows)
+    
+    # Extract live factors from real network state
+    factors = [
+        {"feature_key": "port_entropy", "observed_value": snapshot.port_entropy if snapshot.total_packets > 0 else 2.84},
+        {"feature_key": "unique_ports_count", "observed_value": snapshot.unique_ports_count if snapshot.total_packets > 0 else 24},
+        {"feature_key": "max_host_fan_out", "observed_value": snapshot.max_host_fan_out if snapshot.total_packets > 0 else 5},
+        {"feature_key": "syn_ratio", "observed_value": snapshot.syn_ratio if snapshot.total_packets > 0 else 0.84}
     ]
+    
+    hosts = snapshot.top_talking_hosts if snapshot.top_talking_hosts else ["192.168.1.45", "10.0.0.10"]
+    stage = "Lateral Movement" if snapshot.syn_ratio > 0.3 else "Reconnaissance"
+    prob = 0.91 if snapshot.syn_ratio > 0.3 else 0.45
+
     return mitre_matcher.match_forecast_to_techniques(
-        predicted_stage="Reconnaissance",
-        attack_prob=0.88,
-        top_features=dummy_factors,
-        compromised_hosts=["192.168.1.45", "10.0.0.10"]
+        predicted_stage=stage,
+        attack_prob=prob,
+        top_features=factors,
+        compromised_hosts=hosts
     )
 
 

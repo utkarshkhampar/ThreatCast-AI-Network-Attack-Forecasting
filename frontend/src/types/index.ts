@@ -42,8 +42,12 @@ export interface ExplainabilityData {
   predicted_stage: string;
   attack_probability: number;
   plain_language_summary: string;
+  anomaly_reasons?: string[];
   top_contributing_factors: XaiAttributionFactor[];
   model_explainability_method: string;
+  baseline_divergence_pct?: number;
+  computation_latency_ms?: number;
+  model_confidence_level?: string;
 }
 
 export interface MitreTechniqueMatch {

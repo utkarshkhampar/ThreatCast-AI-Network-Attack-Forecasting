@@ -7,6 +7,7 @@ and calculates real-time network topology metrics and blast radius.
 import time
 import math
 import random
+import hashlib
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, BackgroundTasks
 from pydantic import BaseModel
@@ -14,6 +15,8 @@ from ingestion.packet_parser import PacketParser, PacketFeatureRecord
 from ingestion.flow_extractor import FlowAggregator, FlowRecord
 from feature_engineering.state_builder import StateBuilder, NetworkStateSnapshot
 from graph_engine.temporal_graph import TemporalGraph
+from ueba.baseline_profiler import ueba_engine
+from blockchain.client import blockchain_client
 from backend.app.schemas.all_schemas import TelemetryPacketInput, TelemetryStatsResponse
 from backend.app.websockets.connection_manager import ws_manager
 
@@ -63,6 +66,33 @@ async def generate_heartbeat_tick():
     if len(recent_flows_buffer) > 100:
         recent_flows_buffer.pop(0)
 
+    # Ingest full PacketFeatureRecord so state_builder has live packet buffer
+    pkt_record = packet_parser.parse_raw_packet_dict({
+        "timestamp": now,
+        "src_ip": src,
+        "dst_ip": dst,
+        "src_port": random.randint(32768, 61000),
+        "dst_port": port,
+        "protocol": proto,
+        "packet_length": max(64, bytes_len // max(batch_size, 1)),
+        "ttl": 64,
+        "tcp_flags": {"SYN": 1 if is_syn else 0, "ACK": 0 if is_syn else 1, "RST": 0, "FIN": 0},
+        "payload_size": max(0, (bytes_len // max(batch_size, 1)) - 40)
+    })
+    ingested_packets_buffer.append(pkt_record)
+    if len(ingested_packets_buffer) > 200:
+        ingested_packets_buffer.pop(0)
+
+    flow_aggregator.process_packet(pkt_record)
+
+    # Update UEBA Baseline Profile with observed traffic
+    ueba_engine.get_or_create_profile(src).update_observation(
+        target_ips=[dst],
+        ports_contacted=[port],
+        bytes_observed=bytes_len,
+        current_conn_rate=batch_size / 2.0
+    )
+
     temporal_graph.add_or_update_edge(
         src_ip=src,
         dst_ip=dst,
@@ -73,6 +103,25 @@ async def generate_heartbeat_tick():
         syn_count=1 if is_syn else 0,
         threat_score=88.5 if (is_syn or "198.51.100.42" in (src, dst)) else 12.0
     )
+
+    # Periodically anchor cryptographic evidence into Hyperledger/Merkle Blockchain ledger (every 5 seconds)
+    if int(now) % 5 == 0:
+        try:
+            pcap_hash = hashlib.sha256(f"{src}->{dst}:{port}:{now}:{batch_size}".encode()).hexdigest()
+            blockchain_client.anchor_evidence(
+                evidence_id=f"EVID-{int(now*1000)}",
+                forecast_id=f"FC-{int(now)}",
+                evidence_hash=pcap_hash,
+                collector_id="COLLECTOR-CORP-GW01",
+                target_asset_id="AST-WK-42" if "192.168.1.45" in (src, dst) else "AST-SRV-APP",
+                mitre_technique="T1595.002" if is_syn else "T1021.002",
+                risk_score=91.0 if is_syn else 15.0,
+                confidence_score=0.94 if is_syn else 0.88,
+                off_chain_uri=f"pcap://threatcast-storage/flows/{int(now)}.pcap",
+                actor_id="AUTONOMOUS_ENGINE"
+            )
+        except Exception:
+            pass
 
     try:
         await ws_manager.broadcast_telemetry(flow)
@@ -177,20 +226,66 @@ async def inject_attack_simulation():
     total_packet_count += 350
     now = time.time()
     targets = ["10.0.0.10", "10.0.0.20", "10.0.0.5", "192.168.1.1"]
+    
     for tgt in targets:
-        pkt = {
+        port = 445 if "10" in tgt else 80
+        pkt_dict = {
+            "timestamp": now,
+            "src_ip": "192.168.1.45",
+            "dst_ip": tgt,
+            "src_port": random.randint(49152, 65535),
+            "dst_port": port,
+            "protocol": "TCP",
+            "packet_length": 64,
+            "ttl": 64,
+            "tcp_flags": {"SYN": 1, "ACK": 0, "RST": 0, "FIN": 0},
+            "payload_size": 0
+        }
+        pkt_record = packet_parser.parse_raw_packet_dict(pkt_dict)
+        ingested_packets_buffer.append(pkt_record)
+        flow_aggregator.process_packet(pkt_record)
+
+        flow = {
             "src_ip": "192.168.1.45",
             "dst_ip": tgt,
             "protocol": "TCP",
-            "dst_port": 445 if "10" in tgt else 80,
+            "dst_port": port,
             "bytes": 64,
             "timestamp": now,
             "is_syn_scan": True
         }
-        recent_flows_buffer.append(pkt)
-        temporal_graph.add_or_update_edge("192.168.1.45", tgt, "TCP", 445, 64, 15, syn_count=10, threat_score=94.0)
+        recent_flows_buffer.append(flow)
+        temporal_graph.add_or_update_edge("192.168.1.45", tgt, "TCP", port, 64, 25, syn_count=20, threat_score=96.0)
 
-    return {"status": "ATTACK_BURST_INJECTED", "affected_targets": len(targets)}
+    # Immediate UEBA Anomaly Spike for the offending workstation
+    ueba_engine.get_or_create_profile("192.168.1.45").update_observation(
+        target_ips=targets,
+        ports_contacted=[445, 80],
+        bytes_observed=256,
+        current_conn_rate=45.0
+    )
+
+    # Immediately Anchor Critical Attack Evidence to Blockchain Ledger
+    attack_hash = hashlib.sha256(f"ATTACK-BURST:192.168.1.45:{targets}:{now}".encode()).hexdigest()
+    evidence_res = blockchain_client.anchor_evidence(
+        evidence_id=f"EVID-BURST-{int(now*1000)}",
+        forecast_id=f"FC-BURST-{int(now)}",
+        evidence_hash=attack_hash,
+        collector_id="SOC-EMERGENCY-DETECTOR",
+        target_asset_id="AST-WK-42",
+        mitre_technique="T1021.002",
+        risk_score=96.0,
+        confidence_score=0.96,
+        off_chain_uri=f"pcap://threatcast-storage/incidents/burst-{int(now)}.pcap",
+        actor_id="AUTONOMOUS_GATEWAY"
+    )
+
+    return {
+        "status": "ATTACK_BURST_INJECTED",
+        "affected_targets": len(targets),
+        "blockchain_block": evidence_res.get("block_number"),
+        "evidence_hash": attack_hash
+    }
 
 
 @router.get("/graph", response_model=Dict[str, Any])
