@@ -137,6 +137,9 @@ export const api = {
       { src_ip: "10.0.0.10", dst_ip: "10.0.0.5", protocol: "TCP", dst_port: 389, bytes: 3800, timestamp: Date.now() / 1000 - 8, is_syn_scan: false }
     ]),
 
+  injectAttackSimulation: (): Promise<{ status: string; affected_targets: number }> =>
+    fetchJson<{ status: string; affected_targets: number }>('/telemetry/inject-attack', { method: 'POST' }, { status: 'ATTACK_BURST_INJECTED', affected_targets: 4 }),
+
   getNetworkGraph: (): Promise<any> =>
     fetchJson<any>('/telemetry/graph', undefined, {
       graph: {
@@ -400,6 +403,35 @@ export const api = {
         "Temporal Graph World Model": { accuracy: 0.946, precision: 0.938, recall: 0.952, f1_score: 0.945, roc_auc: 0.978, brier_score: 0.048, early_warning_lead_time_min: 4.8, inference_latency_ms: 18.4 }
       }
     }),
+
+  getUebaProfiles: (): Promise<any[]> =>
+    fetchJson<any[]>('/ueba/profiles', undefined, [
+      { entity_id: "ENT-WKSTN-042", ip: "192.168.1.45", role: "WORKSTATION", current_deviation_score: 84.5, anomaly_level: "CRITICAL", typical_peers_count: 3 },
+      { entity_id: "ENT-SRV-APP", ip: "10.0.0.10", role: "SERVER", current_deviation_score: 38.0, anomaly_level: "MEDIUM", typical_peers_count: 14 },
+      { entity_id: "ENT-SRV-DB", ip: "10.0.0.20", role: "DATABASE", current_deviation_score: 12.0, anomaly_level: "LOW", typical_peers_count: 5 },
+      { entity_id: "ENT-GW-EDGE", ip: "192.168.1.1", role: "GATEWAY", current_deviation_score: 15.0, anomaly_level: "LOW", typical_peers_count: 22 }
+    ]),
+
+  getMitreTactics: (): Promise<any[]> =>
+    fetchJson<any[]>('/mitre/tactics', undefined, []),
+
+  getAuditLogs: (): Promise<any[]> =>
+    fetchJson<any[]>('/audit', undefined, []),
+
+  getAnalyticsOverview: (): Promise<any> =>
+    fetchJson<any>('/analytics/overview', undefined, {
+      total_threats_blocked: 412,
+      mean_lead_time_seconds: 252,
+      accuracy_rate: 0.946,
+      calibrated_brier: 0.048
+    }),
+
+  getThreatIntelIocs: (): Promise<any[]> =>
+    fetchJson<any[]>('/threat-intelligence/iocs', undefined, []),
+
+  getComplianceControls: (): Promise<any[]> =>
+    fetchJson<any[]>('/compliance/controls', undefined, []),
+
 
   auth: {
     login: async (username: string, password: string): Promise<any> => {

@@ -11,9 +11,22 @@ import { ForecastData } from '../types';
 export const AttackForecast: React.FC = () => {
   const [forecast, setForecast] = useState<ForecastData | null>(null);
   const [selectedStep, setSelectedStep] = useState<number>(3);
+  const [countdownSeconds, setCountdownSeconds] = useState<number>(252);
 
   useEffect(() => {
-    api.getLatestForecast(5).then(setForecast);
+    const fetchForecast = () => {
+      api.getLatestForecast(5).then(setForecast).catch(console.error);
+    };
+    fetchForecast();
+    const dataInterval = setInterval(fetchForecast, 1000);
+    const timerInterval = setInterval(() => {
+      setCountdownSeconds(prev => (prev > 1 ? prev - 1 : 252));
+    }, 1000);
+
+    return () => {
+      clearInterval(dataInterval);
+      clearInterval(timerInterval);
+    };
   }, []);
 
   const chartData = forecast?.steps.map(s => ({
@@ -34,6 +47,10 @@ export const AttackForecast: React.FC = () => {
           <h1 className="text-xl font-bold font-mono text-slate-100 flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-cyan-400" />
             ATTACK FORECAST & LATENT WORLD MODEL ROLLOUT
+            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-[10px] text-emerald-400 font-mono font-semibold">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+              LIVE 1s TICK
+            </span>
           </h1>
           <p className="text-xs text-slate-400 mt-1">
             Autoregressive forward projection P(Z_t+k | Z_t) simulating plausible attacker trajectories ahead of compromise.
@@ -108,7 +125,13 @@ export const AttackForecast: React.FC = () => {
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-emerald-400" />
               <span>Calculated Early Warning Lead Time:</span>
-              <span className="text-emerald-400 font-mono font-bold">4 minutes 12 seconds</span>
+              <span className="text-emerald-400 font-mono font-bold">
+                {Math.floor(countdownSeconds / 60)} minutes {countdownSeconds % 60 < 10 ? '0' : ''}{countdownSeconds % 60} seconds
+              </span>
+              <span className="flex h-2 w-2 relative ml-1">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
             </div>
             <span className="text-[11px] font-mono text-slate-500">Target Attack Culmination: T+5 (50s)</span>
           </div>

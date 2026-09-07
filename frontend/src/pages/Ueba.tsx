@@ -1,20 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { UserCheck, ShieldAlert, AlertTriangle, Activity } from 'lucide-react';
 import { GlassCard } from '../components/common/GlassCard';
+import { api } from '../services/api';
 
 export const Ueba: React.FC = () => {
   const [profiles, setProfiles] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch('/api/v1/ueba/profiles')
-      .then(r => r.json())
-      .catch(() => [
-        { entity_id: "ENT-WKSTN-042", ip: "192.168.1.45", role: "WORKSTATION", current_deviation_score: 84.5, anomaly_level: "CRITICAL", typical_peers_count: 3 },
-        { entity_id: "ENT-SRV-APP", ip: "10.0.0.10", role: "SERVER", current_deviation_score: 38.0, anomaly_level: "MEDIUM", typical_peers_count: 14 },
-        { entity_id: "ENT-SRV-DB", ip: "10.0.0.20", role: "DATABASE", current_deviation_score: 12.0, anomaly_level: "LOW", typical_peers_count: 5 },
-        { entity_id: "ENT-GW-EDGE", ip: "192.168.1.1", role: "GATEWAY", current_deviation_score: 15.0, anomaly_level: "LOW", typical_peers_count: 22 }
-      ])
-      .then(setProfiles);
+    const load = () => {
+      api.getUebaProfiles().then(setProfiles).catch(console.error);
+    };
+    load();
+    const interval = setInterval(load, 2000);
+    return () => clearInterval(interval);
   }, []);
 
   return (

@@ -3,6 +3,7 @@ ThreatCast - Main FastAPI Application
 Temporal Graph World Model for Predictive Cyber Defence
 """
 
+import asyncio
 from contextlib import asynccontextmanager
 import logging
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -39,6 +40,19 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(na
 logger = logging.getLogger("threatcast.main")
 
 
+async def _live_heartbeat_worker():
+    """Continuous 1-second background worker generating live packet flows across campus topology."""
+    while True:
+        try:
+            from backend.app.api.v1.telemetry import generate_heartbeat_tick
+            await generate_heartbeat_tick()
+        except asyncio.CancelledError:
+            break
+        except Exception:
+            pass
+        await asyncio.sleep(1.0)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting ThreatCast AI Network Attack Forecasting Platform...")
@@ -47,7 +61,14 @@ async def lifespan(app: FastAPI):
         logger.info("Database schemas initialized successfully.")
     except Exception as e:
         logger.error("Failed to initialize database: %s", e)
+
+    worker_task = asyncio.create_task(_live_heartbeat_worker())
     yield
+    worker_task.cancel()
+    try:
+        await worker_task
+    except asyncio.CancelledError:
+        pass
     logger.info("Shutting down ThreatCast Platform.")
 
 

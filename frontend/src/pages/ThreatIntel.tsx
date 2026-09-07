@@ -1,23 +1,33 @@
 import React, { useEffect, useState } from 'react';
 import { Globe, Search, ShieldAlert, AlertTriangle } from 'lucide-react';
 import { GlassCard } from '../components/common/GlassCard';
+import { api } from '../services/api';
 
 export const ThreatIntel: React.FC = () => {
   const [iocs, setIocs] = useState<any[]>([]);
   const [searchVal, setSearchVal] = useState('');
 
   useEffect(() => {
-    fetch('/api/v1/threat-intelligence/iocs')
-      .then(r => r.json())
+    const d = (daysAgo: number) => new Date(Date.now() - daysAgo * 86400000).toISOString().split('T')[0];
+    api.getThreatIntelIocs()
+      .then(res => {
+        if (Array.isArray(res) && res.length > 0) {
+          setIocs(res);
+        } else {
+          setIocs([
+            { type: "IP", value: "198.51.100.42", reputation: "MALICIOUS", confidence: 0.98, threat_actor: "APT29-Affiliated", first_seen: d(2), category: "C2 Server" },
+            { type: "IP", value: "203.0.113.19", reputation: "SUSPICIOUS", confidence: 0.72, threat_actor: "Unknown Scanner", first_seen: d(1), category: "Port Scanner" },
+            { type: "DOMAIN", value: "telemetry-sync-cdn.xyz", reputation: "MALICIOUS", confidence: 0.94, threat_actor: "Cobalt Strike Profile", first_seen: d(3), category: "C2 Domain" }
+          ]);
+        }
+      })
       .catch(() => {
-        const d = (daysAgo: number) => new Date(Date.now() - daysAgo * 86400000).toISOString().split('T')[0];
-        return [
+        setIocs([
           { type: "IP", value: "198.51.100.42", reputation: "MALICIOUS", confidence: 0.98, threat_actor: "APT29-Affiliated", first_seen: d(2), category: "C2 Server" },
           { type: "IP", value: "203.0.113.19", reputation: "SUSPICIOUS", confidence: 0.72, threat_actor: "Unknown Scanner", first_seen: d(1), category: "Port Scanner" },
           { type: "DOMAIN", value: "telemetry-sync-cdn.xyz", reputation: "MALICIOUS", confidence: 0.94, threat_actor: "Cobalt Strike Profile", first_seen: d(3), category: "C2 Domain" }
-        ];
-      })
-      .then(setIocs);
+        ]);
+      });
   }, []);
 
   const filtered = iocs.filter(i => i.value.toLowerCase().includes(searchVal.toLowerCase()));

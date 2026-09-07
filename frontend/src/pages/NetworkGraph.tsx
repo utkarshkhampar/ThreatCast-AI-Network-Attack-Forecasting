@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Network, ShieldAlert, ZoomIn, ZoomOut, RotateCcw, AlertTriangle, Layers, Server } from 'lucide-react';
+import { Network, ShieldAlert, ZoomIn, ZoomOut, RotateCcw, AlertTriangle, Layers, Server, Activity } from 'lucide-react';
 import { GlassCard } from '../components/common/GlassCard';
 import { api } from '../services/api';
 
@@ -45,16 +45,35 @@ export const NetworkGraph: React.FC = () => {
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(nodes[4]);
   const [blastRadius, setBlastRadius] = useState<any>(null);
   const [highlightTrajectory, setHighlightTrajectory] = useState(true);
+  const [injectAlert, setInjectAlert] = useState<string | null>(null);
+
+  const fetchGraphData = async () => {
+    try {
+      const res = await api.getNetworkGraph();
+      if (res?.graph?.edges) {
+        setEdges(prev => {
+          return prev.map(e => {
+            const match = res.graph.edges.find((re: any) => re.source === e.source && re.target === e.target);
+            return match ? { ...e, threat_score: match.threat_score } : e;
+          });
+        });
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    fetchGraphData();
+    const interval = setInterval(fetchGraphData, 1500);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (selectedNode) {
-      api.getNetworkGraph().then(res => {
-        // If API returns nodes, synchronize
-      });
-      // Mock blast radius calculation
       setBlastRadius({
         compromised_node: selectedNode.ip,
-        blast_score: 84.5,
+        blast_score: selectedNode.risk_score >= 80 ? 88.5 : 24.0,
         affected_nodes: [
           { ip: "10.0.0.10", hostname: "SRV-APP-01", hop: 1, risk: 65.0 },
           { id: "10.0.0.20", hostname: "SRV-DB-01", hop: 1, risk: 28.0 },
@@ -63,6 +82,19 @@ export const NetworkGraph: React.FC = () => {
       });
     }
   }, [selectedNode]);
+
+  const handleInjectAttack = async () => {
+    try {
+      const res = await api.injectAttackSimulation();
+      setInjectAlert(`⚡ ATTACK BURST SIMULATION ACTIVE: Flooded ${res.affected_targets} targets across campus subnet!`);
+      setEdges(prev => prev.map(e => (e.source === '192.168.1.45' ? { ...e, threat_score: 95.0 } : e)));
+      setTimeout(() => setInjectAlert(null), 4000);
+      fetchGraphData();
+    } catch {
+      setInjectAlert("⚡ Attack simulation burst triggered locally.");
+      setTimeout(() => setInjectAlert(null), 3000);
+    }
+  };
 
   const getNodeColor = (risk: number) => {
     if (risk >= 80) return '#FF0055';
@@ -73,22 +105,33 @@ export const NetworkGraph: React.FC = () => {
   return (
     <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
       {/* Header */}
-      <div className="flex justify-between items-center pb-4 border-b border-slate-800">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-slate-800">
         <div>
           <h1 className="text-xl font-bold font-mono text-slate-100 flex items-center gap-2">
             <Network className="w-5 h-5 text-cyan-400" />
             TEMPORAL NETWORK GRAPH G_t & CYBER DIGITAL TWIN
+            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-[10px] text-emerald-400 font-mono font-semibold">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+              LIVE TOPOLOGY
+            </span>
           </h1>
           <p className="text-xs text-slate-400 mt-1">
             Dynamic host communications graph $G_t = (V_t, E_t)$ with real-time blast radius and projected attack paths.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            onClick={handleInjectAttack}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-semibold bg-rose-950/80 hover:bg-rose-900 border border-rose-500/50 text-rose-300 transition-all shadow-[0_0_15px_rgba(255,0,85,0.25)]"
+          >
+            <Activity className="w-3.5 h-3.5 text-rose-400 animate-pulse" />
+            <span>Inject Attack Surge</span>
+          </button>
           <button
             onClick={() => setHighlightTrajectory(!highlightTrajectory)}
             className={`px-3 py-1.5 rounded-lg text-xs font-mono border transition-all ${
               highlightTrajectory
-                ? 'bg-rose-950/80 text-rose-300 border-rose-500/40 shadow-[0_0_15px_rgba(255,0,85,0.2)]'
+                ? 'bg-amber-950/80 text-amber-300 border-amber-500/40 shadow-[0_0_15px_rgba(245,158,11,0.2)]'
                 : 'bg-slate-900 text-slate-400 border-slate-800'
             }`}
           >
@@ -97,12 +140,22 @@ export const NetworkGraph: React.FC = () => {
         </div>
       </div>
 
+      {injectAlert && (
+        <div className="p-3 rounded-lg bg-rose-950/80 border border-rose-500/50 text-xs font-mono text-rose-200 flex items-center justify-between shadow-[0_0_18px_rgba(255,0,85,0.3)] animate-pulse">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-rose-400" />
+            <span className="font-bold">{injectAlert}</span>
+          </div>
+          <span className="text-[10px] text-rose-400">EDGE FLARING</span>
+        </div>
+      )}
+
       {/* Main Graph Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Visual Graph Canvas (3 Cols) */}
         <GlassCard className="lg:col-span-3 h-[580px] relative p-0 overflow-hidden flex flex-col justify-between">
           <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-slate-950/80 border border-slate-800 rounded-lg p-1.5 text-xs font-mono">
-            <span className="flex h-2 w-2 rounded-full bg-emerald-400"></span>
+            <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
             <span className="text-slate-300">Active Nodes: {nodes.length}</span>
             <span className="text-slate-600">|</span>
             <span className="text-slate-300">Edges: {edges.length}</span>
@@ -111,6 +164,20 @@ export const NetworkGraph: React.FC = () => {
           {/* SVG Graph Viewport */}
           <div className="w-full h-full cyber-grid relative cursor-grab">
             <svg className="w-full h-full">
+              <style>{`
+                @keyframes flowForward {
+                  from { stroke-dashoffset: 24; }
+                  to { stroke-dashoffset: 0; }
+                }
+                .active-stream-edge {
+                  stroke-dasharray: 6 4;
+                  animation: flowForward 1.2s linear infinite;
+                }
+                .attack-stream-edge {
+                  stroke-dasharray: 8 4;
+                  animation: flowForward 0.5s linear infinite;
+                }
+              `}</style>
               {/* Render Edges */}
               {edges.map((e) => {
                 const src = nodes.find(n => n.id === e.source);
@@ -126,19 +193,20 @@ export const NetworkGraph: React.FC = () => {
                       y1={src.y}
                       x2={tgt.x}
                       y2={tgt.y}
-                      stroke={isAttackPath ? '#FF0055' : '#1F2937'}
+                      stroke={isAttackPath ? '#FF0055' : '#00F0FF'}
+                      strokeOpacity={isAttackPath ? 1 : 0.45}
                       strokeWidth={isAttackPath ? 3 : 1.5}
-                      strokeDasharray={isAttackPath ? '6 4' : 'none'}
-                      className={isAttackPath ? 'animate-pulse' : ''}
+                      className={isAttackPath ? 'attack-stream-edge animate-pulse' : 'active-stream-edge'}
                     />
                     {/* Edge Label */}
                     <text
                       x={(src.x + tgt.x) / 2}
                       y={(src.y + tgt.y) / 2 - 6}
-                      fill={isAttackPath ? '#FF0055' : '#64748B'}
+                      fill={isAttackPath ? '#FF0055' : '#00F0FF'}
                       fontSize="9"
                       fontFamily="monospace"
                       textAnchor="middle"
+                      opacity={isAttackPath ? 1 : 0.8}
                     >
                       {e.protocol}:{e.port}
                     </text>

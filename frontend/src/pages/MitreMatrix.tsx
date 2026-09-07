@@ -14,8 +14,21 @@ export const MitreMatrix: React.FC = () => {
       setMappings(data);
       if (data.length > 0) setSelectedMapping(data[0]);
     });
-    fetch('/api/v1/mitre/tactics')
-      .then(r => r.json())
+    api.getMitreTactics()
+      .then(data => {
+        if (data && Object.keys(data).length > 0) {
+          setTactics(data);
+        } else {
+          setTactics({
+            "TA0043": { name: "Reconnaissance" },
+            "TA0001": { name: "Initial Access" },
+            "TA0007": { name: "Discovery" },
+            "TA0008": { name: "Lateral Movement" },
+            "TA0011": { name: "Command and Control" },
+            "TA0010": { name: "Exfiltration" }
+          });
+        }
+      })
       .catch(() => ({
         "TA0043": { name: "Reconnaissance" },
         "TA0001": { name: "Initial Access" },
@@ -24,7 +37,7 @@ export const MitreMatrix: React.FC = () => {
         "TA0011": { name: "Command and Control" },
         "TA0010": { name: "Exfiltration" }
       }))
-      .then(setTactics);
+      .then(t => t && setTactics(t));
   }, []);
 
   return (

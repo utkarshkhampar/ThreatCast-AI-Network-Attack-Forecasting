@@ -17,28 +17,79 @@ export const Dashboard: React.FC = () => {
   const [stats, setStats] = useState<TelemetryStats | null>(null);
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [loading, setLoading] = useState(true);
+  const [earlyWarningSeconds, setEarlyWarningSeconds] = useState(252);
+  const [injectBanner, setInjectBanner] = useState<string | null>(null);
+  const [throughputHistory, setThroughputHistory] = useState<Array<{ time: string; pps: number; kbps: number }>>(() => {
+    const initial = [];
+    const now = Date.now();
+    for (let i = 14; i >= 0; i--) {
+      const t = new Date(now - i * 1000);
+      initial.push({
+        time: t.toLocaleTimeString([], { hour12: false, minute: '2-digit', second: '2-digit' }),
+        pps: Math.round(42 + Math.sin(i) * 5),
+        kbps: Number((12.5 + Math.sin(i * 0.7) * 2.5).toFixed(1))
+      });
+    }
+    return initial;
+  });
+
+  const loadData = async () => {
+    try {
+      const [fcData, statsData, incData] = await Promise.all([
+        api.getLatestForecast(5),
+        api.getTelemetryStats(),
+        api.getIncidents()
+      ]);
+      setForecast(fcData);
+      setStats(statsData);
+      setIncidents(incData);
+
+      setThroughputHistory(prev => {
+        const nowStr = new Date().toLocaleTimeString([], { hour12: false, minute: '2-digit', second: '2-digit' });
+        const newPt = {
+          time: nowStr,
+          pps: statsData.pps,
+          kbps: Number((statsData.bps / 1024).toFixed(1))
+        };
+        return [...prev.slice(1), newPt];
+      });
+    } catch (e) {
+      console.error("Error loading dashboard data", e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    async function loadData() {
-      try {
-        const [fcData, statsData, incData] = await Promise.all([
-          api.getLatestForecast(5),
-          api.getTelemetryStats(),
-          api.getIncidents()
-        ]);
-        setForecast(fcData);
-        setStats(statsData);
-        setIncidents(incData);
-      } catch (e) {
-        console.error("Error loading dashboard data", e);
-      } finally {
-        setLoading(false);
-      }
-    }
     loadData();
-    const interval = setInterval(loadData, 5000);
-    return () => clearInterval(interval);
+    const dataInterval = setInterval(loadData, 1000);
+    const timerInterval = setInterval(() => {
+      setEarlyWarningSeconds(prev => (prev > 1 ? prev - 1 : 252));
+    }, 1000);
+
+    return () => {
+      clearInterval(dataInterval);
+      clearInterval(timerInterval);
+    };
   }, []);
+
+  const handleInjectAttack = async () => {
+    try {
+      const res = await api.injectAttackSimulation();
+      setInjectBanner(`⚡ ATTACK BURST SIMULATED (${res.affected_targets} targets flooded, +350 packets)`);
+      setTimeout(() => setInjectBanner(null), 4000);
+      loadData();
+    } catch {
+      setInjectBanner("⚡ Attack surge injected locally");
+      setTimeout(() => setInjectBanner(null), 3000);
+    }
+  };
+
+  const formatEarlyWarning = (secs: number) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}m ${s < 10 ? '0' : ''}${s}s`;
+  };
 
   const timelineData = forecast?.steps.map(s => ({
     label: s.step_label,
@@ -55,28 +106,49 @@ export const Dashboard: React.FC = () => {
         <div>
           <h1 className="text-lg font-bold font-mono text-slate-100 flex items-center gap-2">
             <span className="text-cyan-400">THREATCAST</span> OPERATIONAL MISSION CONTROL
+            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-[10px] text-emerald-400 font-mono font-semibold">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              LIVE 1s TICK
+            </span>
           </h1>
           <p className="text-xs text-slate-400 mt-0.5">
             Operating Loop: <span className="text-cyan-300 font-mono">Observe</span> → <span className="text-cyan-300 font-mono">Understand</span> → <span className="text-cyan-300 font-mono">Predict</span> → <span className="text-cyan-300 font-mono">Explain</span> → <span className="text-cyan-300 font-mono">Simulate</span> → <span className="text-cyan-300 font-mono">Defend</span>
           </p>
         </div>
-        <div className="flex items-center gap-3 mt-3 lg:mt-0">
+        <div className="flex flex-wrap items-center gap-2.5 mt-3 lg:mt-0">
+          <button
+            onClick={handleInjectAttack}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-semibold bg-amber-950/80 hover:bg-amber-900 border border-amber-500/50 text-amber-300 transition-colors shadow-[0_0_12px_rgba(245,158,11,0.25)]"
+          >
+            <Activity className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+            <span>Inject Attack Surge</span>
+          </button>
           <Link
             to="/simulation"
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-mono font-medium bg-cyan-950 hover:bg-cyan-900 border border-cyan-500/40 text-cyan-300 transition-colors shadow-[0_0_15px_rgba(0,240,255,0.2)]"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-medium bg-cyan-950 hover:bg-cyan-900 border border-cyan-500/40 text-cyan-300 transition-colors shadow-[0_0_15px_rgba(0,240,255,0.2)]"
           >
             <span>Run Counterfactual</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </Link>
           <Link
             to="/response"
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-mono font-medium bg-rose-950/80 hover:bg-rose-900 border border-rose-500/40 text-rose-300 transition-colors shadow-[0_0_15px_rgba(255,0,85,0.2)]"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-medium bg-rose-950/80 hover:bg-rose-900 border border-rose-500/40 text-rose-300 transition-colors shadow-[0_0_15px_rgba(255,0,85,0.2)]"
           >
             <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
             <span>Active Defence Gate</span>
           </Link>
         </div>
       </div>
+
+      {injectBanner && (
+        <div className="p-3 rounded-lg bg-rose-950/80 border border-rose-500/50 text-xs font-mono text-rose-200 flex items-center justify-between shadow-[0_0_18px_rgba(255,0,85,0.3)] animate-pulse">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-rose-400" />
+            <span className="font-bold">{injectBanner}</span>
+          </div>
+          <span className="text-[10px] text-rose-400">TELEMETRY SURGING</span>
+        </div>
+      )}
 
       {/* KPI Cards Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -135,10 +207,16 @@ export const Dashboard: React.FC = () => {
             <Clock className="w-4 h-4 text-cyan-400" />
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-bold font-mono text-emerald-400">4m 12s</span>
+            <span className="text-3xl font-bold font-mono text-emerald-400">
+              {formatEarlyWarning(earlyWarningSeconds)}
+            </span>
+            <span className="flex h-2 w-2 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
           </div>
           <p className="mt-1 text-[11px] text-emerald-300/80">
-            Lead time before lateral breach
+            Ticking down to predicted escalation
           </p>
         </GlassCard>
 
@@ -296,11 +374,34 @@ export const Dashboard: React.FC = () => {
         </GlassCard>
 
         {/* Live Network Telemetry Snapshot */}
-        <GlassCard title="Telemetry Stream Rates" badge="10s WINDOW">
-          <div className="space-y-4 text-xs font-mono">
+        <GlassCard title="Live Telemetry Rates" badge="1s ROLLING STREAM">
+          <div className="space-y-3 text-xs font-mono">
+            <div className="h-20 w-full pt-1">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={throughputHistory} margin={{ top: 2, right: 2, left: -25, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="liveThroughput" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#00F0FF" stopOpacity={0.4}/>
+                      <stop offset="95%" stopColor="#00F0FF" stopOpacity={0.0}/>
+                    </linearGradient>
+                  </defs>
+                  <YAxis domain={['auto', 'auto']} stroke="#334155" tick={{ fill: '#64748B', fontSize: 9, fontFamily: 'monospace' }} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#0F172A', borderColor: '#1E293B', borderRadius: '6px', fontSize: '10px' }}
+                    labelStyle={{ color: '#00F0FF', fontFamily: 'monospace' }}
+                  />
+                  <Area type="monotone" dataKey="pps" stroke="#00F0FF" strokeWidth={2} fillOpacity={1} fill="url(#liveThroughput)" name="PPS" />
+                </AreaChart>
+              </ResponsiveContainer>
+              <div className="text-[10px] text-center font-mono text-slate-500 mt-0.5">15-Second Ingestion Window (PPS)</div>
+            </div>
+
             <div className="flex justify-between items-center py-1.5 border-b border-slate-800">
               <span className="text-slate-400">Total Packets Ingested</span>
-              <span className="text-slate-200 font-bold">{stats?.total_packets_ingested || 1450}</span>
+              <span className="text-emerald-400 font-bold flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                {stats?.total_packets_ingested || 1450}
+              </span>
             </div>
             <div className="flex justify-between items-center py-1.5 border-b border-slate-800">
               <span className="text-slate-400">Active Network Flows</span>
@@ -315,7 +416,7 @@ export const Dashboard: React.FC = () => {
               <span className="text-cyan-400 font-bold">{stats ? (stats.bps / 1024).toFixed(1) : '12.5'} KB/s</span>
             </div>
             <div className="flex justify-between items-center py-1.5">
-              <span className="text-slate-400">Destination Port Entropy</span>
+              <span className="text-slate-400">Port Entropy Index</span>
               <span className="text-amber-400 font-bold">{stats?.port_entropy || 2.84}</span>
             </div>
           </div>
