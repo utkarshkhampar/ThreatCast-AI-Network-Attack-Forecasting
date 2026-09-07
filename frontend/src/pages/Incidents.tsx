@@ -8,13 +8,32 @@ export const Incidents: React.FC = () => {
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
   const [statusNote, setStatusNote] = useState('');
+  const [isSimulating, setIsSimulating] = useState(false);
 
-  useEffect(() => {
+  const fetchIncidents = () => {
     api.getIncidents().then(data => {
       setIncidents(data);
-      if (data.length > 0) setSelectedIncident(data[0]);
-    });
+      setSelectedIncident(prev => prev ? (data.find(d => d.id === prev.id) || data[0]) : data[0]);
+    }).catch(console.error);
+  };
+
+  useEffect(() => {
+    fetchIncidents();
+    const interval = setInterval(fetchIncidents, 2000);
+    return () => clearInterval(interval);
   }, []);
+
+  const handleSimulateIncident = async () => {
+    setIsSimulating(true);
+    try {
+      await api.injectAttackSimulation();
+      fetchIncidents();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setTimeout(() => setIsSimulating(false), 2000);
+    }
+  };
 
   const handleUpdateStatus = async (newStatus: string) => {
     if (!selectedIncident) return;
@@ -31,18 +50,31 @@ export const Incidents: React.FC = () => {
   return (
     <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
       {/* Header */}
-      <div className="flex justify-between items-center pb-4 border-b border-slate-800">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-slate-800">
         <div>
           <h1 className="text-xl font-bold font-mono text-slate-100 flex items-center gap-2">
             <AlertTriangle className="w-5 h-5 text-rose-400" />
             INCIDENT TRIAGE & FORENSIC INVESTIGATION
+            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-[10px] text-emerald-400 font-mono font-semibold">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+              LIVE TRIAGE QUEUE (2s)
+            </span>
           </h1>
           <p className="text-xs text-slate-400 mt-1">
             End-to-end incident lifecycle management with forecast linkages and blockchain evidence custody.
           </p>
         </div>
-        <div className="text-xs font-mono text-slate-400">
-          Total Incidents: <span className="text-cyan-400 font-bold">{incidents.length}</span>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleSimulateIncident}
+            disabled={isSimulating}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-semibold bg-rose-950/80 hover:bg-rose-900 border border-rose-500/50 text-rose-300 transition-all shadow-[0_0_15px_rgba(255,0,85,0.25)]"
+          >
+            <span>{isSimulating ? '⚡ Ingesting...' : '⚡ Trigger Incident Burst'}</span>
+          </button>
+          <div className="text-xs font-mono text-slate-400 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg">
+            Active Incidents: <span className="text-cyan-400 font-bold">{incidents.length}</span>
+          </div>
         </div>
       </div>
 

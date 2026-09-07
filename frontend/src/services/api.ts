@@ -163,6 +163,13 @@ export const api = {
       }
     }),
 
+  getBlastRadius: (targetIp: string): Promise<any> =>
+    fetchJson<any>(`/telemetry/blast-radius/${targetIp}`, undefined, {
+      compromised_node: targetIp,
+      blast_score: 84.5,
+      affected_nodes: []
+    }),
+
   getAssets: (): Promise<Asset[]> =>
     fetchJson<Asset[]>('/assets', undefined, [
       { id: "AST-GW-01", name: "GW-EDGE-01", ip_address: "192.168.1.1", asset_type: "GATEWAY", criticality: "CRITICAL", is_monitored: true, is_allowlisted: true, risk_score: 15.0, ueba_deviation: 12.0, created_at: new Date(Date.now() - 86400000 * 2).toISOString().split('T')[0] },

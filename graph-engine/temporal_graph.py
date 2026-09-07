@@ -173,6 +173,11 @@ class TemporalGraph:
         dst_node.total_bytes += bytes_count
         dst_node.total_packets += packets_count
 
+        if threat_score > 0:
+            src_node.risk_score = max(src_node.risk_score, threat_score)
+            if threat_score >= 70.0:
+                dst_node.risk_score = max(dst_node.risk_score, round(threat_score * 0.75, 1))
+
         return e
 
     def calculate_blast_radius(self, compromised_ip: str, max_depth: int = 2) -> Dict[str, Any]:

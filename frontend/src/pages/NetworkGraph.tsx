@@ -24,6 +24,16 @@ interface GraphEdge {
   threat_score: number;
 }
 
+const DEFAULT_NODE_COORDINATES: Record<string, { x: number; y: number }> = {
+  "192.168.1.1": { x: 200, y: 150 },
+  "10.0.0.5": { x: 500, y: 100 },
+  "10.0.0.10": { x: 450, y: 260 },
+  "10.0.0.20": { x: 650, y: 240 },
+  "192.168.1.45": { x: 220, y: 340 },
+  "192.168.1.88": { x: 100, y: 240 },
+  "198.51.100.42": { x: 750, y: 140 }
+};
+
 export const NetworkGraph: React.FC = () => {
   const [nodes, setNodes] = useState<GraphNode[]>([
     { id: "192.168.1.1", ip: "192.168.1.1", hostname: "GW-EDGE-01", asset_type: "GATEWAY", criticality: "CRITICAL", risk_score: 15.0, degree: 4, x: 200, y: 150 },
@@ -50,13 +60,38 @@ export const NetworkGraph: React.FC = () => {
   const fetchGraphData = async () => {
     try {
       const res = await api.getNetworkGraph();
-      if (res?.graph?.edges) {
-        setEdges(prev => {
-          return prev.map(e => {
-            const match = res.graph.edges.find((re: any) => re.source === e.source && re.target === e.target);
-            return match ? { ...e, threat_score: match.threat_score } : e;
+      if (res?.graph?.nodes && Array.isArray(res.graph.nodes)) {
+        setNodes(prev => {
+          return res.graph.nodes.map((rn: any, idx: number) => {
+            const existing = prev.find(p => p.id === rn.id || p.ip === rn.ip);
+            const defaultCoord = DEFAULT_NODE_COORDINATES[rn.ip] || {
+              x: 180 + ((idx * 110) % 520),
+              y: 110 + ((idx * 80) % 280)
+            };
+            return {
+              id: rn.id || rn.ip,
+              ip: rn.ip,
+              hostname: rn.hostname || existing?.hostname || `host-${rn.ip}`,
+              asset_type: rn.asset_type || existing?.asset_type || 'WORKSTATION',
+              criticality: rn.criticality || existing?.criticality || 'MEDIUM',
+              risk_score: rn.risk_score !== undefined ? rn.risk_score : (existing?.risk_score || 10.0),
+              degree: rn.degree !== undefined ? rn.degree : (existing?.degree || 2),
+              x: existing?.x || defaultCoord.x,
+              y: existing?.y || defaultCoord.y
+            };
           });
         });
+      }
+
+      if (res?.graph?.edges && Array.isArray(res.graph.edges)) {
+        setEdges(res.graph.edges.map((re: any) => ({
+          id: re.id,
+          source: re.source,
+          target: re.target,
+          protocol: re.protocol,
+          port: re.port,
+          threat_score: re.threat_score || 0.0
+        })));
       }
     } catch (e) {
       console.error(e);
@@ -71,23 +106,29 @@ export const NetworkGraph: React.FC = () => {
 
   useEffect(() => {
     if (selectedNode) {
-      setBlastRadius({
-        compromised_node: selectedNode.ip,
-        blast_score: selectedNode.risk_score >= 80 ? 88.5 : 24.0,
-        affected_nodes: [
-          { ip: "10.0.0.10", hostname: "SRV-APP-01", hop: 1, risk: 65.0 },
-          { id: "10.0.0.20", hostname: "SRV-DB-01", hop: 1, risk: 28.0 },
-          { id: "10.0.0.5", hostname: "DC-CORP-01", hop: 2, risk: 22.0 }
-        ]
+      api.getBlastRadius(selectedNode.ip).then(data => {
+        if (data && data.blast_score !== undefined) {
+          setBlastRadius(data);
+        }
+      }).catch(() => {
+        setBlastRadius({
+          compromised_node: selectedNode.ip,
+          blast_score: selectedNode.risk_score >= 80 ? 88.5 : 24.0,
+          affected_nodes: [
+            { ip: "10.0.0.10", hostname: "SRV-APP-01", hop: 1, risk: 65.0 },
+            { ip: "10.0.0.20", hostname: "SRV-DB-01", hop: 1, risk: 28.0 },
+            { ip: "10.0.0.5", hostname: "DC-CORP-01", hop: 2, risk: 22.0 }
+          ]
+        });
       });
     }
-  }, [selectedNode]);
+  }, [selectedNode?.ip, selectedNode?.risk_score]);
 
   const handleInjectAttack = async () => {
     try {
       const res = await api.injectAttackSimulation();
       setInjectAlert(`⚡ ATTACK BURST SIMULATION ACTIVE: Flooded ${res.affected_targets} targets across campus subnet!`);
-      setEdges(prev => prev.map(e => (e.source === '192.168.1.45' ? { ...e, threat_score: 95.0 } : e)));
+      setEdges(prev => prev.map(e => (e.source === '192.168.1.45' ? { ...e, threat_score: 96.0 } : e)));
       setTimeout(() => setInjectAlert(null), 4000);
       fetchGraphData();
     } catch {
@@ -318,14 +359,24 @@ export const NetworkGraph: React.FC = () => {
 
                 <div className="space-y-2 pt-2 border-t border-slate-800">
                   <span className="text-slate-400 uppercase text-[11px]">Blast Radius Analysis</span>
-                  <div className="p-2.5 rounded bg-rose-950/40 border border-rose-500/30">
+                  <div className="p-2.5 rounded bg-rose-950/40 border border-rose-500/30 space-y-1.5">
                     <div className="flex justify-between text-rose-300 font-semibold mb-1">
                       <span>Lateral Exposure:</span>
                       <span>{blastRadius?.blast_score || 84.5}%</span>
                     </div>
                     <p className="text-[10px] text-slate-400">
-                      3 internal servers accessible within 2 network hops from this endpoint.
+                      {blastRadius?.affected_node_count || blastRadius?.affected_nodes?.length || 3} internal hosts reachable within 2 hops from this endpoint.
                     </p>
+                    {blastRadius?.affected_nodes && blastRadius.affected_nodes.length > 0 && (
+                      <div className="pt-1.5 border-t border-rose-900/50 space-y-1 text-[10px]">
+                        {blastRadius.affected_nodes.slice(0, 4).map((an: any, i: number) => (
+                          <div key={i} className="flex justify-between text-slate-300">
+                            <span>{an.hostname || an.ip || an.node_id}</span>
+                            <span className="text-amber-400 font-mono">Hop {an.hop_distance || an.hop || 1}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

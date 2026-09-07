@@ -17,6 +17,9 @@ from feature_engineering.state_builder import StateBuilder, NetworkStateSnapshot
 from graph_engine.temporal_graph import TemporalGraph
 from ueba.baseline_profiler import ueba_engine
 from blockchain.client import blockchain_client
+from datetime import datetime
+from backend.app.core.database import AsyncSessionLocal
+from backend.app.models.all_models import IncidentRecord
 from backend.app.schemas.all_schemas import TelemetryPacketInput, TelemetryStatsResponse
 from backend.app.websockets.connection_manager import ws_manager
 
@@ -279,6 +282,29 @@ async def inject_attack_simulation():
         off_chain_uri=f"pcap://threatcast-storage/incidents/burst-{int(now)}.pcap",
         actor_id="AUTONOMOUS_GATEWAY"
     )
+
+    # Immediately Record Urgent Incident in DB for Live Incident Triage
+    try:
+        async with AsyncSessionLocal() as session:
+            inc_id = f"INC-2026-{int(now) % 10000:04d}"
+            new_inc = IncidentRecord(
+                id=inc_id,
+                incident_title="Multi-Target TCP SYN Reconnaissance Flood Surge",
+                severity="CRITICAL",
+                status="NEW",
+                forecast_id=f"FC-BURST-{int(now)}",
+                target_asset_id="AST-WK-42",
+                assigned_analyst="autonomous_triage",
+                summary=f"High-frequency multi-target SYN probe burst detected from 192.168.1.45 across {len(targets)} internal subnets. Cryptographic anchor #{evidence_res.get('block_number')} committed.",
+                mitre_technique="T1595.002",
+                risk_score=96.0,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
+            session.add(new_inc)
+            await session.commit()
+    except Exception:
+        pass
 
     return {
         "status": "ATTACK_BURST_INJECTED",
