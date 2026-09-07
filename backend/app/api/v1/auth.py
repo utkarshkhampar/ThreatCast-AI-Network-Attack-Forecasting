@@ -3,6 +3,8 @@ ThreatCast - Auth API Router
 Handles login, registration, Email OTP verification, JWT issuance, and RBAC profile retrieval.
 """
 
+import json
+import uuid
 import secrets
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -14,7 +16,7 @@ from backend.app.core.security import (
     verify_password, get_password_hash, create_access_token, create_refresh_token,
     get_current_user_payload
 )
-from backend.app.models.all_models import User
+from backend.app.models.all_models import User, AuditLogRecord
 from backend.app.schemas.all_schemas import (
     Token, LoginRequest, RegisterRequest, RegisterResponse,
     SendOtpRequest, VerifyOtpRequest, VerifyOtpResponse, UserResponse
@@ -235,6 +237,21 @@ async def verify_otp(req: VerifyOtpRequest, db: AsyncSession = Depends(get_db)):
     access_token = create_access_token(token_payload)
     refresh_token = create_refresh_token(token_payload)
 
+    # Record live security audit entry
+    try:
+        audit_entry = AuditLogRecord(
+            user_id=user.username,
+            action="OTP_VERIFICATION_CLEARANCE",
+            target="SOC Gateway Access Control",
+            outcome="SUCCESS",
+            correlation_id=str(uuid.uuid4()),
+            details_json=json.dumps({"role": user.role, "email": user.email, "event": "Operator clearance verified live"})
+        )
+        db.add(audit_entry)
+        await db.commit()
+    except Exception:
+        pass
+
     return VerifyOtpResponse(
         message="Security clearance verified successfully! Account activated.",
         is_verified=True,
@@ -300,6 +317,21 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
     }
     access_token = create_access_token(token_payload)
     refresh_token = create_refresh_token(token_payload)
+
+    # Record live security audit entry
+    try:
+        audit_entry = AuditLogRecord(
+            user_id=user.username,
+            action="OPERATOR_AUTHENTICATED_LOGIN",
+            target="ThreatCast SOC Console",
+            outcome="SUCCESS",
+            correlation_id=str(uuid.uuid4()),
+            details_json=json.dumps({"role": user.role, "email": user.email, "event": "Operator signed into SOC Console"})
+        )
+        db.add(audit_entry)
+        await db.commit()
+    except Exception:
+        pass
 
     return Token(
         access_token=access_token,

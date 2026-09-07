@@ -162,12 +162,12 @@ export const api = {
 
   getAssets: (): Promise<Asset[]> =>
     fetchJson<Asset[]>('/assets', undefined, [
-      { id: "AST-GW-01", name: "GW-EDGE-01", ip_address: "192.168.1.1", asset_type: "GATEWAY", criticality: "CRITICAL", is_monitored: true, is_allowlisted: true, risk_score: 15.0, ueba_deviation: 12.0, created_at: "2026-09-01" },
-      { id: "AST-DC-01", name: "DC-CORP-01", ip_address: "10.0.0.5", asset_type: "SERVER", criticality: "CRITICAL", is_monitored: true, is_allowlisted: true, risk_score: 22.0, ueba_deviation: 15.0, created_at: "2026-09-01" },
-      { id: "AST-SRV-APP", name: "SRV-APP-01", ip_address: "10.0.0.10", asset_type: "SERVER", criticality: "HIGH", is_monitored: true, is_allowlisted: true, risk_score: 45.0, ueba_deviation: 38.0, created_at: "2026-09-01" },
-      { id: "AST-SRV-DB", name: "SRV-DB-01", ip_address: "10.0.0.20", asset_type: "DATABASE", criticality: "CRITICAL", is_monitored: true, is_allowlisted: true, risk_score: 18.0, ueba_deviation: 8.0, created_at: "2026-09-01" },
-      { id: "AST-WK-42", name: "WKSTN-042", ip_address: "192.168.1.45", asset_type: "WORKSTATION", criticality: "MEDIUM", is_monitored: true, is_allowlisted: true, risk_score: 88.5, ueba_deviation: 84.2, created_at: "2026-09-01" },
-      { id: "AST-WK-88", name: "WKSTN-088", ip_address: "192.168.1.88", asset_type: "WORKSTATION", criticality: "LOW", is_monitored: true, is_allowlisted: true, risk_score: 12.0, ueba_deviation: 5.0, created_at: "2026-09-01" }
+      { id: "AST-GW-01", name: "GW-EDGE-01", ip_address: "192.168.1.1", asset_type: "GATEWAY", criticality: "CRITICAL", is_monitored: true, is_allowlisted: true, risk_score: 15.0, ueba_deviation: 12.0, created_at: new Date(Date.now() - 86400000 * 2).toISOString().split('T')[0] },
+      { id: "AST-DC-01", name: "DC-CORP-01", ip_address: "10.0.0.5", asset_type: "SERVER", criticality: "CRITICAL", is_monitored: true, is_allowlisted: true, risk_score: 22.0, ueba_deviation: 15.0, created_at: new Date(Date.now() - 86400000 * 2).toISOString().split('T')[0] },
+      { id: "AST-SRV-APP", name: "SRV-APP-01", ip_address: "10.0.0.10", asset_type: "SERVER", criticality: "HIGH", is_monitored: true, is_allowlisted: true, risk_score: 45.0, ueba_deviation: 38.0, created_at: new Date(Date.now() - 86400000 * 2).toISOString().split('T')[0] },
+      { id: "AST-SRV-DB", name: "SRV-DB-01", ip_address: "10.0.0.20", asset_type: "DATABASE", criticality: "CRITICAL", is_monitored: true, is_allowlisted: true, risk_score: 18.0, ueba_deviation: 8.0, created_at: new Date(Date.now() - 86400000 * 2).toISOString().split('T')[0] },
+      { id: "AST-WK-42", name: "WKSTN-042", ip_address: "192.168.1.45", asset_type: "WORKSTATION", criticality: "MEDIUM", is_monitored: true, is_allowlisted: true, risk_score: 88.5, ueba_deviation: 84.2, created_at: new Date(Date.now() - 86400000 * 2).toISOString().split('T')[0] },
+      { id: "AST-WK-88", name: "WKSTN-088", ip_address: "192.168.1.88", asset_type: "WORKSTATION", criticality: "LOW", is_monitored: true, is_allowlisted: true, risk_score: 12.0, ueba_deviation: 5.0, created_at: new Date(Date.now() - 86400000 * 2).toISOString().split('T')[0] }
     ]),
 
   getIncidents: (): Promise<Incident[]> =>
@@ -177,28 +177,28 @@ export const api = {
         incident_title: "Projected Lateral Movement Sequence on WKSTN-042",
         severity: "CRITICAL",
         status: "INVESTIGATING",
-        forecast_id: "FC-1725528000",
+        forecast_id: "FC-" + Math.floor(Date.now() / 1000 - 300),
         target_asset_id: "AST-WK-42",
         assigned_analyst: "analyst1",
         summary: "ThreatCast world model projected 91% lateral movement probability towards SRV-APP-01 via SMB port 445.",
         mitre_technique: "T1021.002",
         risk_score: 91.0,
-        created_at: "2026-09-05T06:20:00Z",
-        updated_at: "2026-09-05T06:35:00Z"
+        created_at: new Date(Date.now() - 18 * 60000).toISOString(),
+        updated_at: new Date(Date.now() - 3 * 60000).toISOString()
       },
       {
         id: "INC-2026-0039",
         incident_title: "Active Reconnaissance Sweep Against Gateway Subnet",
         severity: "HIGH",
         status: "CONTAINED",
-        forecast_id: "FC-1725521000",
+        forecast_id: "FC-" + Math.floor(Date.now() / 1000 - 1800),
         target_asset_id: "AST-GW-01",
         assigned_analyst: "lead_soc_admin",
         summary: "External IP probed sequential ports with elevated SYN ratio. Dry-run rule generated.",
         mitre_technique: "T1595",
         risk_score: 78.5,
-        created_at: "2026-09-05T05:15:00Z",
-        updated_at: "2026-09-05T06:00:00Z"
+        created_at: new Date(Date.now() - 45 * 60000).toISOString(),
+        updated_at: new Date(Date.now() - 12 * 60000).toISOString()
       }
     ]),
 

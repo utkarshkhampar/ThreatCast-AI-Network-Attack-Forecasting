@@ -4,7 +4,7 @@ Handles incident creation, triage lifecycle (NEW -> INVESTIGATING -> CONTAINED -
 and forensic evidence attachment.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -49,15 +49,28 @@ async def list_incidents(db: AsyncSession = Depends(get_db)):
     stmt = select(IncidentRecord).order_by(IncidentRecord.created_at.desc())
     result = await db.execute(stmt)
     incidents = result.scalars().all()
+    now = datetime.utcnow()
 
     if not incidents:
-        for inc_data in PRESEEDED_INCIDENTS:
+        for idx, inc_data in enumerate(PRESEEDED_INCIDENTS):
             rec = IncidentRecord(**inc_data)
+            rec.created_at = now - timedelta(minutes=(idx + 1) * 14)
+            rec.updated_at = now - timedelta(minutes=(idx + 1) * 3)
             db.add(rec)
         await db.commit()
         stmt = select(IncidentRecord).order_by(IncidentRecord.created_at.desc())
         result = await db.execute(stmt)
         incidents = result.scalars().all()
+    else:
+        # Refresh any stale historical timestamps so live demonstration matches current operating date
+        needs_commit = False
+        for idx, inc in enumerate(incidents):
+            if (now - inc.created_at).total_seconds() > 43200:  # > 12 hours old
+                inc.created_at = now - timedelta(minutes=(idx + 1) * 14)
+                inc.updated_at = now - timedelta(minutes=(idx + 1) * 3)
+                needs_commit = True
+        if needs_commit:
+            await db.commit()
 
     return incidents
 

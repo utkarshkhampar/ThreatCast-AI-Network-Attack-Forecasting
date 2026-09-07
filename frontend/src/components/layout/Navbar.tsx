@@ -1,10 +1,21 @@
-import React from 'react';
-import { Shield, Search, Bell, Terminal, Activity, Lock, Cpu } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Shield, Search, Bell, Terminal, Activity, Lock, Cpu, Clock } from 'lucide-react';
 import { useSocStore } from '../../context/useSocStore';
 import { authStorage } from '../../services/api';
 
 export const Navbar: React.FC = () => {
   const { isWsConnected, activeDefenceMode, setIsSearchOpen } = useSocStore();
+  const [liveTime, setLiveTime] = useState<string>('');
+
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      setLiveTime(now.toISOString().replace('T', ' ').slice(0, 19) + ' UTC');
+    };
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <header className="sticky top-0 z-40 flex items-center justify-between h-16 px-6 border-b border-slate-800/80 bg-[#0B0F19]/90 backdrop-blur-md">
@@ -39,6 +50,15 @@ export const Navbar: React.FC = () => {
           <span>Search threats, assets, MITRE...</span>
           <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-slate-800 border border-slate-700 rounded text-slate-400">⌘K</kbd>
         </button>
+
+        {/* Real-time Live SOC Clock */}
+        <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-slate-900/80 border border-cyan-500/30 rounded-lg text-xs font-mono shadow-[0_0_10px_rgba(0,240,255,0.1)]">
+          <Clock className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+          <span className="text-slate-400">SOC TIME:</span>
+          <span className="text-cyan-300 font-bold tracking-wider">
+            {liveTime || 'SYNCING...'}
+          </span>
+        </div>
 
         {/* Real-time Status Badge */}
         <div className="flex items-center gap-2 px-3 py-1 bg-slate-900/60 border border-slate-800 rounded-lg text-xs font-mono">
